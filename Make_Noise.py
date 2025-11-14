@@ -3,17 +3,19 @@ import cv2
 import numpy as np
 import csv
 import random
+from pathlib import Path
 
 # ==============================
 # Adjustable Parameters
 # ==============================
-input_folder = r"C:\\Users\\rafae\\OneDrive - Texas Tech University\\Fall 2025\\Image Processing\\Project 5\\output_images"
-output_folder = r"C:\\Users\\rafae\\OneDrive - Texas Tech University\\Fall 2025\\Image Processing\\Project 5\\Noise_Images_Salt_And_Pepper_10_Percent"
+input_folder = Path("output_images")
+output_folder = Path("gaussian_noise_15_sigma")
 noise_density = 0.1  # % of total pixels affected (0.02 = 2%)
+SIGMA = 15
 # ==============================
 
 # --- Create output directory ---
-os.makedirs(output_folder, exist_ok=True)
+output_folder.mkdir(parents=True, exist_ok=True)
 
 # --- Helper: add salt & pepper noise and track positions ---
 def add_salt_pepper_noise(image, density):
@@ -37,31 +39,49 @@ def add_salt_pepper_noise(image, density):
 
     return noisy, coords_salt, coords_pepper
 
-# --- Process each image in input folder ---
-for filename in os.listdir(input_folder):
-    if filename.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")):
-        filepath = os.path.join(input_folder, filename)
-        image = cv2.imread(filepath)
 
-        # --- Apply noise ---
-        noisy_image, salt_coords, pepper_coords = add_salt_pepper_noise(image, noise_density)
+def add_gaussian_noise(image, sigma):
+    """
+    Add Gaussian noise to an image.
+    
+    Parameters:
+    -----------
+    image : numpy.ndarray
+        Input image (BGR format)
+    sigma : float
+        Standard deviation of the Gaussian noise
+        
+    Returns:
+    --------
+    noisy : numpy.ndarray
+        Image with added Gaussian noise
+    """
+    noisy = image.copy().astype(np.float32)
+    
+    # Generate Gaussian noise with mean=0 and std=sigma
+    h, w, c = image.shape
+    gaussian_noise = np.random.normal(0, sigma, (h, w, c))
+    
+    # Add noise to image
+    noisy = noisy + gaussian_noise
+    
+    # Clip values to valid range [0, 255] and convert back to uint8
+    noisy = np.clip(noisy, 0, 255).astype(np.uint8)
+    
+    return noisy
+
+# --- Process each image in input folder ---
+for image_file in input_folder.glob("*"):
+    if image_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".bmp"]:
+        image = cv2.imread(str(image_file))
+
+        # --- Apply Gaussian noise ---
+        noisy_image = add_gaussian_noise(image, SIGMA)
 
         # --- Save noisy image ---
-        output_image_path = os.path.join(output_folder, f"noisy_{filename}")
-        cv2.imwrite(output_image_path, noisy_image)
+        output_image_path = output_folder / f"noisy_{image_file.name}"
+        cv2.imwrite(str(output_image_path), noisy_image)
 
-        # --- Save pixel coordinates to CSV ---
-        csv_filename = f"noisy_{os.path.splitext(filename)[0]}.csv"
-        csv_path = os.path.join(output_folder, csv_filename)
-
-        with open(csv_path, mode='w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Type", "X", "Y"])
-            for x, y in salt_coords:
-                writer.writerow(["Salt", x, y])
-            for x, y in pepper_coords:
-                writer.writerow(["Pepper", x, y])
-
-        print(f"✅ Processed {filename}: {len(salt_coords)} salt + {len(pepper_coords)} pepper pixels")
+        print(f"✅ Processed {image_file.name}: Added Gaussian noise (sigma={SIGMA})")
 
 print("\nAll images processed and saved to:", output_folder)

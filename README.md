@@ -163,11 +163,10 @@ Results will include:
 - Buades, A., Coll, B., & Morel, J. M. (2005). "A non-local algorithm for image denoising"
 - Tomasi, C., & Manduchi, R. (1998). "Bilateral filtering for gray and color images"
 
-## License
 
-This project is for educational purposes as part of the Image Processing course at Texas Tech University.
-
-## Author
+## Authors
 
 Rafael Moreno
-Fall 2025 - TTU CS Image Processing Course
+Alejandro Rubio
+Carlos Lopez
+Fall 2025 - TTU ECE 4367 Image Processing
