@@ -9,9 +9,9 @@ from pathlib import Path
 # Adjustable Parameters
 # ==============================
 input_folder = Path("output_images")
-output_folder = Path("gaussian_noise_15_sigma")
+output_folder = Path("gaussian_noise_25_sigma")
 noise_density = 0.1  # % of total pixels affected (0.02 = 2%)
-SIGMA = 15
+SIGMA = 25
 # ==============================
 
 # --- Create output directory ---
