@@ -1,0 +1,12 @@
+# Image directories
+gaussian_noise_10_sigma/
+gaussian_noise_15_sigma/
+gaussian_noise_25_sigma/
+Noise_Images_Salt_And_Pepper_10_Percent/
+Noise_Images_Salt_And_Pepper_2_percent/
+output_images/
+
+# Any directory with "noise" or "image" in the name
+*noise*/
+*image*/
+*Image*/
