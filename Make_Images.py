@@ -15,7 +15,7 @@
 
 # # --- Create output directory ---
 # current_dir = os.path.dirname(os.path.abspath(__file__))
-# output_dir = os.path.join(current_dir, "output_images")
+# output_dir = os.path.join(current_dir, "clean_images")
 # os.makedirs(output_dir, exist_ok=True)
 
 # # --- Loop over each background/square color pair ---
@@ -78,7 +78,7 @@
 
 # # --- Create output directory ---
 # current_dir = os.path.dirname(os.path.abspath(__file__))
-# output_dir = os.path.join(current_dir, "output_images")
+# output_dir = os.path.join(current_dir, "clean_images")
 # os.makedirs(output_dir, exist_ok=True)
 
 # # --- Loop over each background/triangle color pair ---
@@ -145,7 +145,7 @@
 
 # # --- Create output directory ---
 # current_dir = os.path.dirname(os.path.abspath(__file__))
-# output_dir = os.path.join(current_dir, "output_images")
+# output_dir = os.path.join(current_dir, "clean_images")
 # os.makedirs(output_dir, exist_ok=True)
 
 # # --- Function to generate dynamic RGB color from loop index ---

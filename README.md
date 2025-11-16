@@ -45,7 +45,7 @@ Project5/
 ├── visualization.py                             # Gaussian noise analysis and visualization CLI tool
 ├── traditional_filtering.py                     # Traditional denoising implementations
 ├── requirements.txt                             # Python dependencies
-├── output_images/                               # Clean original images
+├── clean_images/                               # Clean original images
 ├── gaussian_noise_10_sigma/                     # Gaussian noise (σ=10) dataset
 │   └── noisy_*.png                             # Noisy images
 ├── gaussian_noise_15_sigma/                     # Gaussian noise (σ=15) dataset
@@ -129,13 +129,13 @@ python Make_Noise.py
 ### Analyze Gaussian Noise Distribution
 ```bash
 # Analyze first 3 image pairs
-python visualization.py -o ./output_images -n ./gaussian_noise_15_sigma -s 3
+python visualization.py -o ./clean_images -n ./gaussian_noise_15_sigma -s 3
 
 # Analyze all image pairs
 python visualization.py -o ./output_images -n ./gaussian_noise_15_sigma
 
 # Non-interactive mode (auto-advance through all images)
-python visualization.py -o ./output_images -n ./gaussian_noise_10_sigma --no-interactive
+python visualization.py -o ./clean_images -n ./gaussian_noise_10_sigma --no-interactive
 
 # Get help
 python visualization.py --help

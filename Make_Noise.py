@@ -8,7 +8,7 @@ from pathlib import Path
 # ==============================
 # Adjustable Parameters
 # ==============================
-input_folder = Path("output_images")
+input_folder = Path("clean_images")
 output_folder = Path("gaussian_noise_25_sigma")
 noise_density = 0.1  # % of total pixels affected (0.02 = 2%)
 SIGMA = 25

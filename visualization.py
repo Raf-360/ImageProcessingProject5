@@ -386,13 +386,13 @@ def main() -> None:
         epilog="""
             Examples:
             # Analyze first 3 image pairs
-            python visualization.py -o ./output_images -n ./gaussian_noise_15_sigma -s 3
+            python visualization.py -o ./clean_images -n ./gaussian_noise_15_sigma -s 3
             
             # Analyze all image pairs
             python visualization.py -o ./output_images -n ./gaussian_noise_15_sigma
             
             # Analyze with different noise levels
-            python visualization.py -o ./output_images -n ./gaussian_noise_25_sigma -s 5
+            python visualization.py -o ./clean_images -n ./gaussian_noise_25_sigma -s 5
                 """
     )
     
