@@ -20,36 +20,61 @@ class GaussianNoiseRemover:
     from images using multiple traditional filtering techniques.
     """
     
-    def __init__(self, image_path_or_array: Union[str, Path, np.ndarray], 
-                 ground_truth: Optional[Union[str, Path, np.ndarray]] = None) -> None:
+    def __init__(self, image_path: Path, ground_truth: Path): 
         """
         Initialize the denoiser with a noisy image.
         
         Args:
-            image_path_or_array: Either file path (str/Path) or numpy array
-            ground_truth: Optional clean reference image for metric calculation
+            image_path: Noisey Image File Path
+            ground_truth:  Original/Clean images
         """
-        self._original_image: np.ndarray = self._load_image(image_path_or_array)
-        self._ground_truth: Optional[np.ndarray] = None
-        if ground_truth is not None:
-            self._ground_truth = self._load_image(ground_truth)
+        
+        self._images: List[np.ndarray] = []             # images to clean
+        self._ground_truths: List[np.ndarray] = []      # Clean/Foundational images
         
         self._denoised_cache: Dict[str, np.ndarray] = {}
         self._metrics_cache: Dict[str, Dict[str, float]] = {}
         
         self._validate_image()
     
-    def _load_image(self, image_input: Union[str, Path, np.ndarray]) -> np.ndarray:
+    @staticmethod
+    def _load_image(noisey_images_path: Path = None, ground_truths_image_path: Optional[Path] = None) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """
         Load image from file path or validate numpy array.
         
         Args:
-            image_input: File path or numpy array
+            noisey_images_path: File path containing noisy images 
+            ground_truths_image_path: File path containing clean/ground truth images
             
         Returns:
-            image: Loaded image as numpy array (BGR format)
+            Tuple of (loaded_noisey_images, loaded_gt_images)
         """
-        pass
+        
+        # Load noisy images
+        loaded_noisey_images = []
+        if noisey_images_path is not None:
+            noisey_images = sorted(list(noisey_images_path.rglob("*.png")))
+            for image_path in noisey_images:
+                img = cv.imread(str(image_path))
+                if img is not None:
+                    loaded_noisey_images.append(img)
+        
+        # Load ground truth images
+        loaded_gt_images = []
+        if ground_truths_image_path is not None:
+            ground_truth_images = sorted(list(ground_truths_image_path.rglob("*.png")))
+            for image_path in ground_truth_images:
+                img = cv.imread(str(image_path))
+                if img is not None:
+                    loaded_gt_images.append(img)
+        
+        return loaded_noisey_images, loaded_gt_images 
+            
+            
+        
+        
+        
+        
     
     def _validate_image(self) -> None:
         """Validate that the loaded image is valid."""
