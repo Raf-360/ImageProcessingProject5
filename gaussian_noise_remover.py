@@ -5,8 +5,11 @@ from typing import Dict, List, Tuple, Optional, Union
 from pathlib import Path
 import pandas as pd
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+import math
 import time
 import sys
+
+LAPLACIAN_KERNAL_ENERGY = 72.0
 
 
 class TraditionalNoiseRemover:
@@ -104,22 +107,33 @@ class TraditionalNoiseRemover:
             noise level
         """
         
-        # convert to gray scale 
         gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-        
-        laplacian = cv.Laplacian(gray, cv.CV_64F)
-        laplacian = np.array(laplacian)
-        
-        # calculate MAD
-        mad = np.median(np.abs(laplacian - np.median(laplacian)))
-        
-        sigma = 1.4826 * mad
-        
-        print("=========== Noise Estimation ==========")
-        print(f"M.A.D. (Median Absolute Deviation: {mad})")
-        print(f"SIGMA: {sigma} \n")
-        
-        return float(sigma)
+
+        # Force consistent kernel
+        lap = cv.Laplacian(gray, cv.CV_64F, ksize=1)
+
+        # Only use smooth regions for MAD (edge mask)
+        edges = cv.Canny(gray, 80, 160)
+        mask = (edges == 0)
+
+        if np.sum(mask) < 50:
+            # fallback if mask too small
+            data = lap
+        else:
+            data = lap[mask]
+
+        mad = np.median(np.abs(data - np.median(data)))
+
+        # kernel energy for 3x3 4-connected Laplacian (ksize=1)
+        LAPLACIAN_KERNEL_ENERGY = 20
+
+        sigma_lap = 1.4826 * mad
+        sigma_n = sigma_lap / math.sqrt(LAPLACIAN_KERNEL_ENERGY)
+
+        print(f"M.A.D.:          {mad:.2f}")
+        print(f"Estimated Sigma: {sigma_n:.2f}\n")
+
+        return sigma_n
     
     
     # ========== Core Denoising Methods ==========
@@ -354,6 +368,9 @@ def main():
     noisy_path = Path("gaussian_noise_25_sigma")
     clean_path = Path("clean_images")
     
+    # first N images to be processed(so we don't ahve to look at them all)
+    num_images = 5
+    
     # Check if directories exist
     if not noisy_path.exists():
         print(f"Error: Directory '{noisy_path}' not found")
@@ -364,7 +381,7 @@ def main():
         sys.exit(1)
     
     print("=" * 60)
-    print("Testing Image Loading and Noise Estimation")
+    print("Loading Images")
     print("=" * 60)
     
     try:
@@ -377,40 +394,31 @@ def main():
         
         # Check loaded images
         print(f"✓ Loaded {len(denoiser.images)} noisy images")
-        print(f"✓ Loaded {len(denoiser.ground_truths)} ground truth images")
+        print(f"✓ Loaded {len(denoiser.ground_truths)} ground truth images\n")
         
         if len(denoiser.images) == 0:
             print("Error: No noisy images loaded!")
             sys.exit(1)
         
-        # Check normalization
-        print("\n2. Checking normalization...")
-        first_noisy = denoiser.images[0]
-        print(f"✓ First image shape: {first_noisy.shape}")
-        print(f"✓ First image dtype: {first_noisy.dtype}")
-        print(f"✓ First image value range: [{first_noisy.min():.4f}, {first_noisy.max():.4f}]")
+        print("===== Starting Analysis + Noise Remover =====\n")
         
-        if first_noisy.dtype != 'float32':
-            print(f"Warning: Expected float32, got {first_noisy.dtype}")
+        print("============ Initial Image Stuff ============")
+        for i in range(num_images):
+            noisey_img = denoiser.images[i]
+            ground_truth_img = denoiser.ground_truths[i]
+            print(f"Noisey image size:              {noisey_img.shape}")
+            print(f"Ground Truth Image Dimensions:  {ground_truth_img.shape}")
+            print(f"{'-'*25}")
+            print(f"Noisey Image dtype:             {noisey_img.dtype}")
+            print(f"Ground Truth Image dtype:       {ground_truth_img.dtype}")
+            
         
-        if first_noisy.max() > 1.0 or first_noisy.min() < 0.0:
-            print("Warning: Image values outside [0, 1] range")
+        print("=========== Estimated Noise Level ===========")
+        for i in range(num_images):
+            print(f"Image {i+1}")
+            img = denoiser.images[i]
+            noise_est = denoiser._estimate_noise_level(img)
         
-        # Test noise estimation on first image
-        print("\n3. Testing noise estimation on first noisy image...")
-        sigma = denoiser._estimate_noise_level(first_noisy)
-        print(f"✓ Estimated noise level (sigma): {sigma:.4f}")
-        
-        # Test on a few more images
-        print("\n4. Testing noise estimation on multiple images...")
-        num_to_test = min(3, len(denoiser.images))
-        for i in range(num_to_test):
-            sigma = denoiser._estimate_noise_level(denoiser.images[i])
-            print(f"   Image {i+1}: sigma = {sigma:.4f}")
-        
-        print("\n" + "=" * 60)
-        print("All tests passed! Ready to implement denoising methods.")
-        print("=" * 60)
         
     except Exception as e:
         print(f"\nError occurred: {type(e).__name__}: {e}")
