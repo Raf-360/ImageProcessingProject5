@@ -89,6 +89,7 @@ class GaussianNoiseRemover:
             
         Returns:
             normalized: Normalized image
+
         """
         pass
     
