@@ -243,7 +243,7 @@ Results will include:
 
 ## Authors
 
-Rafael Moreno
+Rafael Reyes
 Alejandro Rubio
 Carlos Lopez
-Fall 2025 - TTU ECE 4367 Image Processing
+Fall 2025 - TTU ECE 4367 & ECE 5367 Image Processing
