@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 import time
+import sys
 
 
 class TraditionalNoiseRemover:
@@ -23,16 +24,17 @@ class TraditionalNoiseRemover:
             ground_truth:  Original/Clean images
         """
         
-        self._images: List[np.ndarray] = []             # images to clean
-        self._ground_truths: List[np.ndarray] = []      # Clean/Foundational images
+        _images, _ground_truths = self._load_image(image_path, ground_truth)
+        
+        self.images = _images
+        self.ground_truths = _ground_truths# images to clean
+       
         
         self._denoised_cache: Dict[str, np.ndarray] = {}
         self._metrics_cache: Dict[str, Dict[str, float]] = {}
         
-        self._validate_image()
     
-    @staticmethod
-    def _load_image(noisey_images_path: Path = None, ground_truths_image_path: Optional[Path] = None) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    def _load_image(self, noisey_images_path: Path = None, ground_truths_image_path: Optional[Path] = None) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """
         Load image from file path or validate numpy array.
         
@@ -66,14 +68,6 @@ class TraditionalNoiseRemover:
             
             
         
-        
-        
-        
-    
-    def _validate_image(self) -> None:
-        """Validate that the loaded image is valid."""
-        pass
-    
     def _normalize_image(self, image: np.ndarray) -> np.ndarray:
         """
         Normalize image to float32 [0, 1] range for processing.
@@ -85,7 +79,9 @@ class TraditionalNoiseRemover:
             normalized: Normalized image
 
         """
-        pass
+        
+        image = image.astype(np.float32) / 255.0
+        return image
     
     def _denormalize_image(self, image: np.ndarray) -> np.ndarray:
         """
@@ -97,16 +93,34 @@ class TraditionalNoiseRemover:
         Returns:
             denormalized: Image in uint8 format
         """
-        pass
+        image = np.clip(image*255.0, 0, 255.0).astype(np.uint8)
+        return image
     
-    def _estimate_noise_level(self) -> float:
+    def _estimate_noise_level(self, image: np.ndarray) -> float:
         """
-        Estimate the noise level (sigma) in the image.
+        Estimate the noise level (sigma) in the image(assuming no ground truth).
         
         Returns:
-            sigma: Estimated noise standard deviation
+            noise level
         """
-        pass
+        
+        # convert to gray scale 
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        
+        laplacian = cv.Laplacian(gray, cv.CV_64F)
+        laplacian = np.array(laplacian)
+        
+        # calculate MAD
+        mad = np.median(np.abs(laplacian - np.median(laplacian)))
+        
+        sigma = 1.4826 * mad
+        
+        print("=========== Noise Estimation ==========")
+        print(f"M.A.D. (Median Absolute Deviation: {mad})")
+        print(f"SIGMA: {sigma} \n")
+        
+        return float(sigma)
+    
     
     # ========== Core Denoising Methods ==========
     
@@ -189,8 +203,7 @@ class TraditionalNoiseRemover:
             denoised_image: Filtered image
         """
         pass
-    
-    # ========== Batch Processing ==========
+
     
     def denoise_all_methods(self, params_dict: Optional[Dict[str, Dict]] = None) -> Dict[str, np.ndarray]:
         """
@@ -320,14 +333,93 @@ class TraditionalNoiseRemover:
     @property
     def original_image(self) -> np.ndarray:
         """Get the original noisy image."""
-        return self._original_image.copy()
+        return self.images.copy()
     
     @property
     def ground_truth_image(self) -> Optional[np.ndarray]:
         """Get the ground truth clean image (if available)."""
-        return self._ground_truth.copy() if self._ground_truth is not None else None
+        return self.ground_truths.copy() if self.ground_truths is not None else None
     
     @property
     def available_methods(self) -> List[str]:
         """Get list of available denoising methods."""
         return ['gaussian_blur', 'bilateral', 'non_local_means', 'wiener', 'median']
+    
+    
+    
+
+def main():
+    
+    # Set up paths
+    noisy_path = Path("gaussian_noise_25_sigma")
+    clean_path = Path("clean_images")
+    
+    # Check if directories exist
+    if not noisy_path.exists():
+        print(f"Error: Directory '{noisy_path}' not found")
+        sys.exit(1)
+    
+    if not clean_path.exists():
+        print(f"Error: Directory '{clean_path}' not found")
+        sys.exit(1)
+    
+    print("=" * 60)
+    print("Testing Image Loading and Noise Estimation")
+    print("=" * 60)
+    
+    try:
+        # Initialize the denoiser
+        print("\n1. Initializing denoiser...")
+        denoiser = TraditionalNoiseRemover(
+            image_path=noisy_path,
+            ground_truth=clean_path
+        )
+        
+        # Check loaded images
+        print(f"✓ Loaded {len(denoiser.images)} noisy images")
+        print(f"✓ Loaded {len(denoiser.ground_truths)} ground truth images")
+        
+        if len(denoiser.images) == 0:
+            print("Error: No noisy images loaded!")
+            sys.exit(1)
+        
+        # Check normalization
+        print("\n2. Checking normalization...")
+        first_noisy = denoiser.images[0]
+        print(f"✓ First image shape: {first_noisy.shape}")
+        print(f"✓ First image dtype: {first_noisy.dtype}")
+        print(f"✓ First image value range: [{first_noisy.min():.4f}, {first_noisy.max():.4f}]")
+        
+        if first_noisy.dtype != 'float32':
+            print(f"Warning: Expected float32, got {first_noisy.dtype}")
+        
+        if first_noisy.max() > 1.0 or first_noisy.min() < 0.0:
+            print("Warning: Image values outside [0, 1] range")
+        
+        # Test noise estimation on first image
+        print("\n3. Testing noise estimation on first noisy image...")
+        sigma = denoiser._estimate_noise_level(first_noisy)
+        print(f"✓ Estimated noise level (sigma): {sigma:.4f}")
+        
+        # Test on a few more images
+        print("\n4. Testing noise estimation on multiple images...")
+        num_to_test = min(3, len(denoiser.images))
+        for i in range(num_to_test):
+            sigma = denoiser._estimate_noise_level(denoiser.images[i])
+            print(f"   Image {i+1}: sigma = {sigma:.4f}")
+        
+        print("\n" + "=" * 60)
+        print("All tests passed! Ready to implement denoising methods.")
+        print("=" * 60)
+        
+    except Exception as e:
+        print(f"\nError occurred: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+    
+    
+    
+if __name__ == "__main__":
+    main()
