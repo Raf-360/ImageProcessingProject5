@@ -1,9 +1,3 @@
-"""
-Gaussian Noise Removal Module
-
-This module provides a comprehensive toolkit for removing Gaussian noise
-from images using multiple traditional filtering techniques.
-"""
 
 import cv2 as cv
 import numpy as np
@@ -14,9 +8,9 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 import time
 
 
-class GaussianNoiseRemover:
+class TraditionalNoiseRemover:
     """
-    A comprehensive denoising toolkit for removing Gaussian noise
+    A comprehensive denoising toolkit for removing noise
     from images using multiple traditional filtering techniques.
     """
     
