@@ -138,7 +138,7 @@ class TraditionalNoiseRemover:
     
     # ========== Core Denoising Methods ==========
     
-    def gaussian_blur(self, kernel_size: Tuple[int, int] = (5, 5), 
+    def gaussian_blur(self, image: np.ndarray, kernel_size: Tuple[int, int] = (5, 5), 
                      sigma: float = 1.0) -> np.ndarray:
         """
         Simple Gaussian blur using cv2.GaussianBlur().
@@ -153,7 +153,8 @@ class TraditionalNoiseRemover:
         Returns:
             denoised_image: Filtered image (same shape as input)
         """
-        pass
+        blurred_img = cv.GaussianBlur(image, kernel_size, 0)
+        return blurred_img
     
     def bilateral_filter(self, d: int = 9, sigma_color: float = 75, 
                         sigma_space: float = 75) -> np.ndarray:
@@ -171,7 +172,7 @@ class TraditionalNoiseRemover:
         Returns:
             denoised_image: Filtered image
         """
-        pass
+        
     
     def non_local_means(self, h: float = 10, template_window_size: int = 7, 
                        search_window_size: int = 21) -> np.ndarray:
