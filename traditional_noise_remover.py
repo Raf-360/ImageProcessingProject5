@@ -156,7 +156,7 @@ class TraditionalNoiseRemover:
         blurred_img = cv.GaussianBlur(image, kernel_size, 0)
         return blurred_img
     
-    def bilateral_filter(self, d: int = 9, sigma_color: float = 75, 
+    def bilateral_filter(self, image: np.ndarray, d: int = 9, sigma_color: float = 75, 
                         sigma_space: float = 75) -> np.ndarray:
         """
         Edge-preserving smoothing using cv2.bilateralFilter().
@@ -173,8 +173,11 @@ class TraditionalNoiseRemover:
             denoised_image: Filtered image
         """
         
+        bilateral_filtered = cv.bilateralFilter(image, d, sigma_color, sigmaSpace=sigma_space)
+        return bilateral_filtered
+        
     
-    def non_local_means(self, h: float = 10, template_window_size: int = 7, 
+    def non_local_means(self, image: np.ndarray, h: float = 10, template_window_size: int = 7, 
                        search_window_size: int = 21) -> np.ndarray:
         """
         Non-local means denoising using cv2.fastNlMeansDenoisingColored().
@@ -190,9 +193,10 @@ class TraditionalNoiseRemover:
         Returns:
             denoised_image: Filtered image
         """
-        pass
+        nl_means = cv.fastNlMeansDenoising(image, h=h, templateWindowSize=template_window_size, searchWindowSize=search_window_size)
+        return nl_means
     
-    def wiener_filter(self, noise_variance: Optional[float] = None) -> np.ndarray:
+    def wiener_filter(self, image: np.ndarray, noise_variance: Optional[float] = None) -> np.ndarray:
         """
         Optimal linear filter for Gaussian noise using Wiener filtering.
         
@@ -205,7 +209,43 @@ class TraditionalNoiseRemover:
         Returns:
             denoised_image: Filtered image
         """
-        pass
+        
+        # Process each channel separately
+        denoised = np.zeros_like(image, dtype=np.float32)
+        
+        # Auto-estimate noise variance if not provided
+        if noise_variance is None:
+            sigma = self._estimate_noise_level(image)
+            noise_variance = sigma ** 2
+        
+        for channel in range(image.shape[2]):
+            # Get channel data
+            img_channel = image[:, :, channel]
+            
+            # Apply FFT
+            f_transform = np.fft.fft2(img_channel)
+            f_shift = np.fft.fftshift(f_transform)
+            
+            # Compute power spectrum
+            power_spectrum = np.abs(f_shift) ** 2
+            
+            # Wiener filter: H_wiener = (|H|^2) / (|H|^2 + noise_var/signal_var)
+            # Simplified: H_wiener = S / (S + N) where S is signal power, N is noise power
+            wiener_filter = power_spectrum / (power_spectrum + noise_variance)
+            
+            # Apply filter in frequency domain
+            filtered_shift = f_shift * wiener_filter
+            
+            # Inverse FFT
+            f_ishift = np.fft.ifftshift(filtered_shift)
+            img_back = np.fft.ifft2(f_ishift)
+            img_back = np.real(img_back)
+            
+            # Clip to valid range
+            denoised[:, :, channel] = np.clip(img_back, 0, 1)
+        
+        return denoised
+        
     
     def median_filter(self, kernel_size: int = 5) -> np.ndarray:
         """
@@ -236,7 +276,16 @@ class TraditionalNoiseRemover:
         Returns:
             results: Dict mapping method_name -> denoised_image
         """
-        pass
+        if params_dict['gaussian_blur']:
+            
+            kernel_size = params_dict['gaussian_blurr']['kernel_size']
+            sigma = params_dict['gaussian_blurr']['sigma']
+            
+            gaussian_filtered = self.gaussian_blur(image, kernel_size=kernel_size, sigma=sigma)
+            
+            
+            
+        return gaussian_filtered
     
     def auto_tune(self, method_name: str, param_ranges: Dict[str, List], 
                   metric: str = 'psnr') -> Tuple[Dict, float]:
