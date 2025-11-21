@@ -112,9 +112,9 @@ def main():
     output_folder = Path(args.output)
     sigma = args.sigma
     
-    # Validate input folder exists
-    if not input_folder.exists():
-        print(f"❌ Error: Input folder '{input_folder}' does not exist")
+    # Validate input folder exists and is a directory
+    if not input_folder.is_dir():
+        print(f"❌ Error: Input folder '{input_folder}' does not exist or is not a directory")
         return 1
     
     # Create output directory
