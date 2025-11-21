@@ -10,12 +10,13 @@ from pathlib import Path
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Add Gaussian noise to images",
+        description="Add noise to images (Gaussian or Salt & Pepper)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog= """
                 Examples:
-                %(prog)s -i clean_images -o noisy_output -s 10
-                %(prog)s --input images/ --output output/ --sigma 25
+                %(prog)s -i clean_images -o noisy_output -t gaussian -s 10
+                %(prog)s -i clean_images -o noisy_output -t salt_pepper -d 0.05
+                %(prog)s --input images/ --output output/ --type gaussian --sigma 25
                 """
     )
     
@@ -34,20 +35,43 @@ def parse_args():
     )
     
     parser.add_argument(
+        "-t", "--type",
+        type=str,
+        choices=["gaussian", "salt_pepper"],
+        default="gaussian",
+        help="Type of noise to add: gaussian or salt_pepper (default: gaussian)"
+    )
+    
+    parser.add_argument(
         "-s", "--sigma",
         type=float,
         default=10.0,
-        help="Standard deviation of Gaussian noise (default: 10.0)"
+        help="Standard deviation of Gaussian noise, must be > 0 (default: 10.0)"
     )
     
     parser.add_argument(
         "-d", "--density",
         type=float,
         default=0.1,
-        help="Noise density for salt & pepper (0.1 = 10%%, default: 0.1)"
+        help="Noise density for salt & pepper, must be between 0 and 1 (default: 0.1)"
     )
     
     return parser.parse_args()
+
+
+def validate_parameters(noise_type, sigma, density):
+    """Validate noise parameters."""
+    if noise_type == "gaussian":
+        if sigma <= 0:
+            raise ValueError(f"Sigma must be greater than 0, got {sigma}")
+        if sigma > 255:
+            print(f"⚠️  Warning: Very large sigma value ({sigma}) may result in completely noisy images")
+    
+    elif noise_type == "salt_pepper":
+        if not (0 <= density <= 1):
+            raise ValueError(f"Density must be between 0 and 1, got {density}")
+        if density > 0.5:
+            print(f"⚠️  Warning: High density value ({density}) will heavily corrupt images")
 
 
 # --- Helper: add salt & pepper noise and track positions ---
@@ -110,7 +134,16 @@ def main():
     
     input_folder = Path(args.input)
     output_folder = Path(args.output)
+    noise_type = args.type
     sigma = args.sigma
+    density = args.density
+    
+    # Validate parameters
+    try:
+        validate_parameters(noise_type, sigma, density)
+    except ValueError as e:
+        print(f"❌ Error: {e}")
+        return 1
     
     # Validate input folder exists
     if not input_folder.exists():
@@ -130,14 +163,19 @@ def main():
                 print(f"⚠️  Warning: Could not read {image_file.name}, skipping")
                 continue
 
-            # Apply Gaussian noise
-            noisy_image = add_gaussian_noise(image, sigma)
+            # Apply noise based on type
+            if noise_type == "gaussian":
+                noisy_image = add_gaussian_noise(image, sigma)
+                noise_desc = f"Gaussian (sigma={sigma})"
+            else:  # salt_pepper
+                noisy_image, _, _ = add_salt_pepper_noise(image, density)
+                noise_desc = f"Salt & Pepper (density={density})"
 
             # Save noisy image
             output_image_path = output_folder / f"noisy_{image_file.name}"
             cv2.imwrite(str(output_image_path), noisy_image)
 
-            print(f"✅ Processed {image_file.name}: Added Gaussian noise (sigma={sigma})")
+            print(f"✅ Processed {image_file.name}: Added {noise_desc}")
             processed_count += 1
 
     if processed_count == 0:
