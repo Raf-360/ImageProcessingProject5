@@ -3,19 +3,52 @@ import cv2
 import numpy as np
 import csv
 import random
+import argparse
 from pathlib import Path
 
-# ==============================
-# Adjustable Parameters
-# ==============================
-input_folder = Path("clean_images")
-output_folder = Path("gaussian_noise_25_sigma")
-noise_density = 0.1  # % of total pixels affected (0.02 = 2%)
-SIGMA = 25
-# ==============================
 
-# --- Create output directory ---
-output_folder.mkdir(parents=True, exist_ok=True)
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Add Gaussian noise to images",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog= """
+                Examples:
+                %(prog)s -i clean_images -o noisy_output -s 10
+                %(prog)s --input images/ --output output/ --sigma 25
+                """
+    )
+    
+    parser.add_argument(
+        "-i", "--input",
+        type=str,
+        required=True,
+        help="Input folder containing clean images"
+    )
+    
+    parser.add_argument(
+        "-o", "--output",
+        type=str,
+        required=True,
+        help="Output folder for noisy images"
+    )
+    
+    parser.add_argument(
+        "-s", "--sigma",
+        type=float,
+        default=10.0,
+        help="Standard deviation of Gaussian noise (default: 10.0)"
+    )
+    
+    parser.add_argument(
+        "-d", "--density",
+        type=float,
+        default=0.1,
+        help="Noise density for salt & pepper (0.1 = 10%%, default: 0.1)"
+    )
+    
+    return parser.parse_args()
+
 
 # --- Helper: add salt & pepper noise and track positions ---
 def add_salt_pepper_noise(image, density):
@@ -70,18 +103,51 @@ def add_gaussian_noise(image, sigma):
     
     return noisy
 
-# --- Process each image in input folder ---
-for image_file in input_folder.glob("*"):
-    if image_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".bmp"]:
-        image = cv2.imread(str(image_file))
 
-        # --- Apply Gaussian noise ---
-        noisy_image = add_gaussian_noise(image, SIGMA)
+def main():
+    """Main function to process images."""
+    args = parse_args()
+    
+    input_folder = Path(args.input)
+    output_folder = Path(args.output)
+    sigma = args.sigma
+    
+    # Validate input folder exists
+    if not input_folder.exists():
+        print(f"❌ Error: Input folder '{input_folder}' does not exist")
+        return 1
+    
+    # Create output directory
+    output_folder.mkdir(parents=True, exist_ok=True)
+    
+    # Process each image in input folder
+    processed_count = 0
+    for image_file in input_folder.glob("*"):
+        if image_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".bmp"]:
+            image = cv2.imread(str(image_file))
+            
+            if image is None:
+                print(f"⚠️  Warning: Could not read {image_file.name}, skipping")
+                continue
 
-        # --- Save noisy image ---
-        output_image_path = output_folder / f"noisy_{image_file.name}"
-        cv2.imwrite(str(output_image_path), noisy_image)
+            # Apply Gaussian noise
+            noisy_image = add_gaussian_noise(image, sigma)
 
-        print(f"✅ Processed {image_file.name}: Added Gaussian noise (sigma={SIGMA})")
+            # Save noisy image
+            output_image_path = output_folder / f"noisy_{image_file.name}"
+            cv2.imwrite(str(output_image_path), noisy_image)
 
-print("\nAll images processed and saved to:", output_folder)
+            print(f"✅ Processed {image_file.name}: Added Gaussian noise (sigma={sigma})")
+            processed_count += 1
+
+    if processed_count == 0:
+        print(f"\n⚠️  No images found in {input_folder}")
+        return 1
+    
+    print(f"\n✅ Successfully processed {processed_count} image(s)")
+    print(f"📁 Output saved to: {output_folder}")
+    return 0
+
+
+if __name__ == "__main__":
+    exit(main())
