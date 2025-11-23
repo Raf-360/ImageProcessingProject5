@@ -8,34 +8,34 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 def calculate_psnr(denoised_image: np.ndarray, ground_truth: np.ndarray) -> float:
     """
-    Calculate Peak Signal-to-Noise Ratio.
+    Computes the Peak Signal-to-Noise Ratio between denoised and ground truth images.
     
-    PSNR = 10 * log10(MAX^2 / MSE)
-    Higher is better (typically 20-40 dB range)
+    PSNR uses a logarithmic scale (dB) to measure reconstruction quality.
+    Higher values mean better quality - typically you'll see 20-40 dB for decent results.
     
     Args:
-        denoised_image: Result from denoising
-        ground_truth: Clean reference
+        denoised_image: The result after denoising
+        ground_truth: Original clean image for comparison
         
     Returns:
-        psnr_value: PSNR in dB
+        PSNR value in decibels
     """
     return peak_signal_noise_ratio(ground_truth, denoised_image, data_range=255)
 
 
 def calculate_ssim(denoised_image: np.ndarray, ground_truth: np.ndarray) -> float:
     """
-    Calculate Structural Similarity Index.
+    Measures structural similarity between images - more sophisticated than just pixel differences.
     
-    SSIM compares luminance, contrast, and structure.
-    Range: [-1, 1], where 1 means identical images.
+    Considers luminance, contrast, and structural patterns. Values closer to 1 indicate
+    better preservation of image structure during denoising.
     
     Args:
-        denoised_image: Result from denoising
-        ground_truth: Clean reference
+        denoised_image: The result after denoising
+        ground_truth: Original clean image for comparison
         
     Returns:
-        ssim_value: Similarity index
+        Similarity score between -1 and 1
     """
     return structural_similarity(ground_truth, denoised_image, channel_axis=2, data_range=255)
 

@@ -10,17 +10,18 @@ from typing import Optional, Dict
 def wiener_denoise(image: np.ndarray, mysize: int = 5, 
                   noise_variance: Optional[float] = None) -> tuple[np.ndarray, Optional[Dict]]:
     """
-    Optimal linear filter for Gaussian noise using Wiener filtering.
-    Uses scipy.signal.wiener for efficient spatial-domain filtering.
+    Applies Wiener filtering - a frequency-domain approach that's optimal for Gaussian noise.
+    
+    This method works in the frequency domain and adapts based on the signal-to-noise ratio
+    at different frequencies. Pretty cool stuff!
     
     Args:
-        image: Input noisy image
-        mysize: Size of the Wiener filter window (e.g., 3, 5, 7)
-        noise_variance: Estimated noise power (auto-detect if None)
+        image: Noisy input image
+        mysize: Filter window size (try 3, 5, or 7)
+        noise_variance: Noise level estimate 
         
     Returns:
-        Tuple of (denoised_image, viz_data)
-        viz_data contains FFT and filter response for visualization
+        Denoised image and visualization data showing the frequency analysis
     """
     # Normalize to [0, 1] range
     image_norm = image.astype(np.float32) / 255.0

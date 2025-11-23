@@ -11,13 +11,16 @@ LAPLACIAN_KERNEL_ENERGY = 72.0
 
 def estimate_noise_level(image: np.ndarray) -> float:
     """
-    Estimate the noise level (sigma) in the image using MAD (Median Absolute Deviation).
+    Tries to estimate how much noise is in the image using the MAD method.
+    
+    Uses a Laplacian filter to isolate high-frequency components (which are mostly noise),
+    then computes the median absolute deviation to get a robust noise estimate.
     
     Args:
-        image: Input image (BGR or grayscale)
+        image: Input image (works with BGR or grayscale)
         
     Returns:
-        Estimated noise standard deviation (sigma)
+        Estimated noise level (sigma)
     """
     # Convert to grayscale if needed
     if len(image.shape) == 3:

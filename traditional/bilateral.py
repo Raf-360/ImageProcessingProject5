@@ -9,18 +9,18 @@ import numpy as np
 def bilateral_denoise(image: np.ndarray, d: int = 9, sigma_color: float = 75, 
                      sigma_space: float = 75) -> np.ndarray:
     """
-    Edge-preserving smoothing using cv2.bilateralFilter().
+    Edge-preserving filter that smooths while keeping boundaries sharp.
     
-    Pros: Preserves edges while smoothing
-    Cons: Slower than Gaussian, parameter-sensitive
+    This is smarter than Gaussian blur - it considers both spatial distance and color
+    similarity when filtering. Slower but preserves important details better.
     
     Args:
-        image: Input noisy image
-        d: Diameter of pixel neighborhood
-        sigma_color: Filter sigma in color space
-        sigma_space: Filter sigma in coordinate space
+        image: Noisy input image
+        d: Neighborhood size to consider
+        sigma_color: How much color difference matters
+        sigma_space: How much spatial distance matters
         
     Returns:
-        denoised_image: Filtered image
+        Filtered image with preserved edges
     """
     return cv.bilateralFilter(image, d, sigma_color, sigmaSpace=sigma_space)

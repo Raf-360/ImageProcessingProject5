@@ -2,7 +2,7 @@
 
 ## What Was Done
 
-Successfully restructured the monolithic `traditional_noise_remover.py` into a modular, organized project following best practices.
+Successfully restructured the monolithic `traditional_noise_remover.py` into a organized structure.
 
 ## New Structure
 

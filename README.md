@@ -1,6 +1,6 @@
 # Image Denoising Project
 
-A comprehensive toolkit for image denoising using traditional and deep learning methods.
+This project implements various image denoising techniques, ranging from traditional filters to modern deep learning approaches. Built as part of my computer vision coursework.
 
 ## Project Structure
 
@@ -8,8 +8,8 @@ A comprehensive toolkit for image denoising using traditional and deep learning 
 image_denoising/
 │
 ├── data/
-│   ├── noisy/          # Noisy input images
-│   └── clean/          # Clean ground truth images
+│   ├── noisy/          # Noisy input images (all noise types)
+│   └── clean/          # Clean ground truth images (all types)
 │
 ├── traditional/        # Traditional denoising methods
 │   ├── gaussian.py     # Gaussian blur filter
@@ -39,14 +39,48 @@ image_denoising/
 └── README.md
 ```
 
-## Installation
+## Dataset Organization
+
+All images should be placed in the `data/` directory, organized into two folders:
+
+- **`data/clean/`** - Ground truth images without noise
+- **`data/noisy/`** - Noisy versions of the clean images
+
+### Types of Clean Images
+
+We use three different types of clean images to test denoising performance:
+
+1. **Lorem Ipsum Text Images**
+   - Generated using `Make_Images.py`
+   - Black/white text on colored backgrounds
+   - Various fonts, sizes, and colors
+   - Good for testing edge preservation and readability after denoising
+   - Sharp features make it easy to see artifacts
+
+2. **X-Ray Medical Images**
+   - Real-world medical imaging data
+   - Grayscale with varying contrast levels
+   - Contains fine details and textures typical in diagnostic imaging
+   - Tests practical applications in medical image processing
+
+3. **Geometric Shapes**
+   - Simple shapes (circles, rectangles, triangles, etc.)
+   - Clean edges and uniform colors
+   - Ideal for quantitative analysis of edge preservation
+   - Provides clear baseline for measuring denoising accuracy
+
+You can add noise to clean images using `Make_Noise.py` which supports both Gaussian and Salt & Pepper noise types.
+
+## Getting Started
+
+Set up your environment:
 
 ```bash
-# Create virtual environment
+# Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows users: .venv\Scripts\activate
 
-# Install dependencies
+# Install the required packages
 pip install -r requirements.txt
 ```
 
@@ -138,34 +172,44 @@ Evaluation Script (evaluate.py):
   --methods [METHODS]    Methods to evaluate
 ```
 
-## Metrics
+## How We Measure Quality
 
-- **PSNR** (Peak Signal-to-Noise Ratio): Higher is better, typical range 20-40 dB
-- **SSIM** (Structural Similarity Index): Range [-1, 1], 1 means identical
-- **MSE** (Mean Squared Error): Lower is better
+- **PSNR** (Peak Signal-to-Noise Ratio): Measures reconstruction quality. Higher values are better, usually between 20-40 dB for decent results.
+- **SSIM** (Structural Similarity Index): Compares structural information. Ranges from -1 to 1, where 1 means the images are identical.
+- **MSE** (Mean Squared Error): Simple pixel-wise difference. Lower values indicate better denoising.
 
 ## Examples
 
-### Example 1: Quick comparison
+### Example 1: Generate clean text images
 ```bash
-python main.py -n ./gaussian_noise_15_sigma -c ./clean_images --compare --visualize --num-images 3
+python Make_Images.py -n 50 --width 800 --height 600 --output data/clean
 ```
 
-### Example 2: Denoise and save with Wiener filter
+### Example 2: Add noise to clean images
 ```bash
-python main.py -n ./gaussian_noise_15_sigma -c ./clean_images -m wiener -o ./denoised_output
+python Make_Noise.py -i data/clean -o data/noisy -t gaussian -s 25
 ```
 
-### Example 3: Batch evaluation
+### Example 3: Quick comparison
 ```bash
-python evaluate.py -n ./gaussian_noise_15_sigma -c ./clean_images -o evaluation_results.csv
+python main.py -n data/noisy -c data/clean --compare --visualize --num-images 3
+```
+
+### Example 4: Denoise and save with Wiener filter
+```bash
+python main.py -n data/noisy -c data/clean -m wiener -o ./denoised_output
+```
+
+### Example 5: Batch evaluation
+```bash
+python evaluate.py -n data/noisy -c data/clean -o evaluation_results.csv
 ```
 
 ## Wiener Filter Visualization
 
 The Wiener filter provides additional frequency domain visualization showing:
 - Fourier Transform (log magnitude) of the noisy image
-- Wiener filter response in frequency domain
+- Wiener response in frequency domain
 
 This helps understand how the filter attenuates different frequency components.
 
@@ -174,8 +218,7 @@ This helps understand how the filter attenuates different frequency components.
 - [ ] Implement deep learning methods (DnCNN, U-Net, etc.)
 - [ ] Add BM3D implementation
 - [ ] Add training pipeline for deep models
-- [ ] Add more noise types (Poisson, speckle)
-- [ ] Add real-world blind denoising
+- [ ] Add more noise types (Salt n Pepper/Motion Blur)
 
 ## References
 
@@ -183,6 +226,3 @@ This helps understand how the filter attenuates different frequency components.
 - Wiener filter: scipy.signal.wiener
 - Metrics: scikit-image
 
-## License
-
-MIT License

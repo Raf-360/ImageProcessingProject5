@@ -10,17 +10,16 @@ from typing import Tuple
 def gaussian_denoise(image: np.ndarray, kernel_size: Tuple[int, int] = (5, 5), 
                     sigma: float = 1.0) -> np.ndarray:
     """
-    Simple Gaussian blur using cv2.GaussianBlur().
+    Basic Gaussian blur - the simplest approach to noise reduction.
     
-    Pros: Fast, simple baseline
-    Cons: Blurs edges, not adaptive
+    Works well as a baseline but tends to blur edges. Fast though!
     
     Args:
-        image: Input noisy image
-        kernel_size: Tuple (width, height), must be odd
-        sigma: Standard deviation of Gaussian kernel
+        image: Noisy input image
+        kernel_size: Filter window size (width, height) - must be odd numbers
+        sigma: Controls blur strength
         
     Returns:
-        denoised_image: Filtered image
+        Smoothed image
     """
     return cv.GaussianBlur(image, kernel_size, sigma)
