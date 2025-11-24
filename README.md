@@ -94,6 +94,22 @@ python main.py -n data/noisy -c data/clean -m bilateral --visualize
 
 # Denoise with all methods and save results
 python main.py -n data/noisy -c data/clean -m all -o output/
+
+# Apply filter multiple times iteratively
+python main.py -n data/noisy -c data/clean -m median --iterations 3 --visualize
+```
+
+### Auto-Tuning Parameters
+
+```bash
+# Auto-tune parameters to find best PSNR
+python main.py -n data/noisy -c data/clean -m bilateral --auto-tune
+
+# Auto-tune for best SSIM with 20 iterations
+python main.py -n data/noisy -c data/clean -m nlm --auto-tune --tune-metric ssim --tune-iterations 20
+
+# Auto-tune with filter iterations optimization
+python main.py -n data/noisy -c data/clean -m median --auto-tune --tune-iterations 30
 ```
 
 ### Method Comparison
@@ -104,6 +120,28 @@ python main.py -n data/noisy -c data/clean --compare --visualize
 
 # Compare specific number of images
 python main.py -n data/noisy -c data/clean --compare --num-images 10
+
+# Visualize multiple images with navigation (press q to continue)
+python main.py -n data/noisy -c data/clean -m bilateral --visualize --num-images 5
+```
+
+### Comprehensive Reports
+
+```bash
+# Generate complete analysis report with all visualizations
+python generate_report.py -n data/noisy -c data/clean --all
+
+# Generate only error maps
+python generate_report.py -n data/noisy -c data/clean --error-maps --num-images 5
+
+# Generate only dataset-wide analysis plots
+python generate_report.py -n data/noisy -c data/clean --dataset-plots
+
+# Generate HTML report
+python generate_report.py -n data/noisy -c data/clean --html-report
+
+# Generate PDF report
+python generate_report.py -n data/noisy -c data/clean --pdf-report
 ```
 
 ### Batch Evaluation
@@ -154,22 +192,41 @@ python main.py -n data/noisy -c data/clean --estimate-noise
 
 ## Command Line Options
 
+### Main Script (main.py)
 ```
-Main Script (main.py):
-  -n, --noisy PATH       Path to noisy images folder (required)
-  -c, --clean PATH       Path to clean images folder (required)
-  -m, --method METHOD    Denoising method: gaussian, median, bilateral, nlm, wiener, all
-  -o, --output PATH      Output folder for denoised images
-  --num-images N         Number of images to process (default: 5)
-  --compare              Compare all methods with metrics
-  --visualize            Show visualization plots
-  --estimate-noise       Estimate noise levels
+  -n, --noisy PATH          Path to noisy images folder (required)
+  -c, --clean PATH          Path to clean images folder (required)
+  -m, --method METHOD       Denoising method: gaussian, median, bilateral, nlm, wiener, all
+  -o, --output PATH         Output folder for denoised images
+  --num-images N            Number of images to process (default: 5)
+  --iterations N            Apply filter N times iteratively (default: 1)
+  --compare                 Compare all methods with metrics
+  --visualize               Show visualization plots
+  --estimate-noise          Estimate noise levels
+  --auto-tune               Use Bayesian optimization to find best parameters
+  --tune-metric METRIC      Metric to optimize: psnr or ssim (default: psnr)
+  --tune-iterations N       Number of optimization iterations (default: 15)
+```
 
-Evaluation Script (evaluate.py):
-  -n, --noisy PATH       Path to noisy images folder (required)
-  -c, --clean PATH       Path to clean images folder (required)
-  -o, --output PATH      Output CSV file for results
-  --methods [METHODS]    Methods to evaluate
+### Report Generation Script (generate_report.py)
+```
+  -n, --noisy PATH          Path to noisy images folder (required)
+  -c, --clean PATH          Path to clean images folder (required)
+  -o, --output PATH         Output folder for reports (default: ./reports)
+  --num-images N            Number of images to process (default: 5)
+  --error-maps              Generate error maps for each method
+  --dataset-plots           Generate dataset-wide analysis plots
+  --html-report             Generate HTML report with embedded visualizations
+  --pdf-report              Generate PDF report with all plots
+  --all                     Generate all reports (error maps, plots, HTML, PDF)
+```
+
+### Evaluation Script (evaluate.py)
+```
+  -n, --noisy PATH          Path to noisy images folder (required)
+  -c, --clean PATH          Path to clean images folder (required)
+  -o, --output PATH         Output CSV file for results
+  --methods [METHODS]       Methods to evaluate
 ```
 
 ## How We Measure Quality
@@ -189,19 +246,44 @@ python Make_Images.py -n 50 --width 800 --height 600 --output data/clean
 python Make_Noise.py -i data/clean -o data/noisy -t gaussian -s 25
 ```
 
-### Example 3: Quick comparison
+### Example 3: Quick comparison with visualization
 ```bash
 python main.py -n data/noisy -c data/clean --compare --visualize --num-images 3
 ```
 
-### Example 4: Denoise and save with Wiener filter
+### Example 4: Auto-tune bilateral filter for best SSIM
+```bash
+python main.py -n data/noisy -c data/clean -m bilateral --auto-tune --tune-metric ssim
+```
+
+### Example 5: Apply median filter 3 times iteratively
+```bash
+python main.py -n data/noisy -c data/clean -m median --iterations 3 --visualize
+```
+
+### Example 6: Denoise and save with Wiener filter
 ```bash
 python main.py -n data/noisy -c data/clean -m wiener -o ./denoised_output
 ```
 
-### Example 5: Batch evaluation
+### Example 7: Batch evaluation to CSV
 ```bash
 python evaluate.py -n data/noisy -c data/clean -o evaluation_results.csv
+```
+
+### Example 8: Generate comprehensive analysis report
+```bash
+python generate_report.py -n data/noisy/gaussian_noise_25_sigma -c data/clean/clean_images --all
+```
+
+### Example 9: Generate only error maps with noise distribution
+```bash
+python generate_report.py -n data/noisy -c data/clean --error-maps --num-images 5
+```
+
+### Example 10: Multi-image visualization (press q to navigate)
+```bash
+python main.py -n data/noisy -c data/clean -m nlm --visualize --num-images 10
 ```
 
 ## Wiener Filter Visualization
