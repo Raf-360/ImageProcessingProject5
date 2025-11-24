@@ -9,7 +9,8 @@ from typing import Dict, Optional
 
 
 def visualize_results(noisy_image: np.ndarray, results_dict: Dict[str, np.ndarray], 
-                     ground_truth: Optional[np.ndarray] = None) -> None:
+                     ground_truth: Optional[np.ndarray] = None, image_number: int = 1, 
+                     total_images: int = 1) -> None:
     """
     Visualize multiple denoising results side-by-side.
     
@@ -17,6 +18,8 @@ def visualize_results(noisy_image: np.ndarray, results_dict: Dict[str, np.ndarra
         noisy_image: Original noisy image
         results_dict: Dict mapping method_name -> denoised_image
         ground_truth: Optional clean image for comparison
+        image_number: Current image number being displayed
+        total_images: Total number of images to display
     """
     num_images = len(results_dict) + 1  # +1 for noisy image
     if ground_truth is not None:
@@ -26,6 +29,8 @@ def visualize_results(noisy_image: np.ndarray, results_dict: Dict[str, np.ndarra
     rows = (num_images + cols - 1) // cols
     
     fig, axes = plt.subplots(rows, cols, figsize=(5*cols, 5*rows))
+    fig.suptitle(f'Image {image_number}/{total_images} - Press "q" to close and continue', 
+                 fontsize=14, fontweight='bold', y=0.98)
     if rows == 1:
         axes = axes.reshape(1, -1)
     axes = axes.flatten()
@@ -56,12 +61,12 @@ def visualize_results(noisy_image: np.ndarray, results_dict: Dict[str, np.ndarra
     for i in range(idx, len(axes)):
         axes[i].axis('off')
     
-    plt.tight_layout()
     plt.show()
 
 
 def visualize_wiener_filter(fft_magnitude: np.ndarray, wiener_filter: np.ndarray, 
-                           noise_variance: float, mysize: int) -> None:
+                           noise_variance: float, mysize: int, image_number: int = 1,
+                           total_images: int = 1) -> None:
     """
     Visualize Wiener filter's Fourier transform and filter response.
     
@@ -70,8 +75,12 @@ def visualize_wiener_filter(fft_magnitude: np.ndarray, wiener_filter: np.ndarray
         wiener_filter: Wiener filter response
         noise_variance: Noise variance used
         mysize: Window size used
+        image_number: Current image number being displayed
+        total_images: Total number of images to display
     """
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig.suptitle(f'Wiener Filter Analysis - Image {image_number}/{total_images} - Press "q" to close and continue', 
+                 fontsize=14, fontweight='bold')
     
     # Plot FFT magnitude spectrum (log scale)
     im1 = axes[0].imshow(fft_magnitude, cmap='hot')

@@ -25,7 +25,7 @@ ENV/
 .ipynb_checkpoints/
 *.ipynb
 
-# Data directories (large image sets)
+# All image directories (excluding results/)
 gaussian_noise_10_sigma/
 gaussian_noise_15_sigma/
 gaussian_noise_25_sigma/
@@ -35,11 +35,14 @@ XRAY_images/
 data/noisy/
 data/clean/
 clean_images/
+*/images/
+*_images/
+image_*/
 
-# Output directories
+# Output directories (excluding results/)
 output/
-results/
 denoised_output/
+reports/
 
 # Model files
 *.pth
@@ -55,6 +58,10 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Text files (excluding requirements.txt)
+*.txt
+!requirements.txt
 
 # Temporary files
 *.tmp

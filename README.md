@@ -51,7 +51,7 @@ All images should be placed in the `data/` directory, organized into two folders
 We use three different types of clean images to test denoising performance:
 
 1. **Lorem Ipsum Text Images**
-   - Generated using `Make_Images.py`
+   - Synthetically generated images
    - Black/white text on colored backgrounds
    - Various fonts, sizes, and colors
    - Good for testing edge preservation and readability after denoising
@@ -176,7 +176,6 @@ Evaluation Script (evaluate.py):
 
 - **PSNR** (Peak Signal-to-Noise Ratio): Measures reconstruction quality. Higher values are better, usually between 20-40 dB for decent results.
 - **SSIM** (Structural Similarity Index): Compares structural information. Ranges from -1 to 1, where 1 means the images are identical.
-- **MSE** (Mean Squared Error): Simple pixel-wise difference. Lower values indicate better denoising.
 
 ## Examples
 
@@ -213,16 +212,95 @@ The Wiener filter provides additional frequency domain visualization showing:
 
 This helps understand how the filter attenuates different frequency components.
 
-## Future Work
+## Project Goals & Progress
 
-- [ ] Implement deep learning methods (DnCNN, U-Net, etc.)
-- [ ] Add BM3D implementation
-- [ ] Add training pipeline for deep models
-- [ ] Add more noise types (Salt n Pepper/Motion Blur)
+### ✅ Completed
+
+**1. Complete Image Denoising Benchmarking Framework**
+- ✅ Unified loader for noisy and clean image pairs (`utils/image_io.py`)
+- ✅ Unified interface for denoising methods
+- ✅ Evaluation pipeline with PSNR, SSIM, MSE (`utils/metrics.py`)
+- ✅ Visualization functions (`utils/visualization.py`)
+- ✅ CLI to run experiments (`main.py`, `evaluate.py`)
+
+**2. Traditional Image Denoising Methods**
+- ✅ Gaussian blur with iterative support
+- ✅ Median filtering with iterative support
+- ✅ Bilateral filtering with iterative support
+- ✅ Non-local means (NLM)
+- ✅ Wiener filtering with FFT visualization
+- ✅ Bayesian parameter auto-tuning (`--auto-tune`)
+- ✅ Noise estimation (MAD method)
+- ✅ Batch processing support
+
+**3. Evaluation Metrics**
+- ✅ PSNR, SSIM, MSE
+- ✅ Runtime measurements
+- ✅ Robustness testing across noise levels
+
+**4. Visualization & Reporting**
+- ✅ Side-by-side comparisons
+- ✅ FFT visualizations (Wiener filter)
+- ✅ Multi-image visualization with navigation
+- ✅ Error maps (`utils/error_maps.py`)
+- ✅ Dataset-wide plots (`utils/dataset_plots.py`)
+- ✅ PDF/HTML report generation (`utils/report_generation.py`)
+
+**5. CLI Features**
+- ✅ Run specific methods (`-m/--method`)
+- ✅ Benchmark all methods (`--compare`)
+- ✅ Auto-tune parameters (`--auto-tune`)
+- ✅ Iterative filtering (`--iterations`)
+- ✅ Save outputs (`-o/--output`)
+- ✅ Noise estimation (`--estimate-noise`)
+- ✅ Visualization (`--visualize`)
+
+**6. Modular Architecture**
+- ✅ Separate directories for traditional, utils, deep, configs
+- ✅ Clean separation of concerns
+- ✅ Plug-in structure for adding new methods
+
+### ⏳ In Progress
+
+**7. Deep Learning Denoising Models**
+- 📋 DnCNN (placeholder created)
+- 📋 UNet-based denoiser (placeholder created)
+- 📋 Denoising autoencoder (placeholder created)
+- 📋 Diffusion models (placeholder created)
+- 📋 Training pipeline needed
+- 📋 Inference pipeline needed
+- 📋 GPU acceleration setup needed
+
+**8. Configurable Experiment System**
+- 📋 YAML/JSON configs for reproducibility (directory created, not implemented)
+
+### 📋 Planned
+
+**9. Advanced Features**
+- 📋 Train custom deep models
+- 📋 Add self-supervised denoisers
+- 📋 Add real-noise datasets (SIDD, DND)
+- 📋 Error map visualization
+- 📋 Dataset-wide comparison plots
+- 📋 LPIPS perceptual metric
+
+**10. Reporting & Comparison**
+- 📋 Traditional vs deep learning performance study
+- 📋 Strengths and weaknesses analysis
+- 📋 Automated PDF/HTML report generation
+- 📋 Detailed charts and visualizations
+
+**11. Stretch Goals**
+- 📋 Optional GUI interface
+- 📋 Web app demo
+- 📋 Publish as open-source package
+- 📋 Real-time denoising demo
+- 📋 Additional noise types (motion blur, compression artifacts)
 
 ## References
 
 - Traditional denoising: OpenCV documentation
 - Wiener filter: scipy.signal.wiener
 - Metrics: scikit-image
+- Bayesian optimization: scikit-optimize
 

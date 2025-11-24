@@ -7,8 +7,8 @@ from scipy.signal import wiener
 from typing import Optional, Dict
 
 
-def wiener_denoise(image: np.ndarray, mysize: int = 5, 
-                  noise_variance: Optional[float] = None) -> tuple[np.ndarray, Optional[Dict]]:
+def wiener_denoise(image: np.ndarray, mysize: int = 7, 
+                  noise_variance: Optional[float] = 0.01117) -> tuple[np.ndarray, Optional[Dict]]:
     """
     Applies Wiener filtering - a frequency-domain approach that's optimal for Gaussian noise.
     
