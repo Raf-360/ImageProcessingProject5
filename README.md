@@ -41,35 +41,54 @@ image_denoising/
 
 ## Dataset Organization
 
-All images should be placed in the `data/` directory, organized into two folders:
+All images are organized in the `data/` directory with proper train/test/validation splits for deep learning:
 
-- **`data/clean/`** - Ground truth images without noise
-- **`data/noisy/`** - Noisy versions of the clean images
+```
+data/
+├── train/ (80%)          # Training data
+│   ├── xray/            # Medical X-ray images (primary focus)
+│   ├── synthetic/       # Text and geometric shapes
+│   └── natural/         # Natural scene images
+├── test/ (10%)          # Test data (same structure)
+└── validation/ (10%)    # Validation data (same structure)
+```
 
-### Types of Clean Images
+Each category contains:
+- `clean/` or `*_images/` - Ground truth clean images
+- `gaussian_noise_*_sigma/` - Noisy versions at different sigma levels
 
-We use three different types of clean images to test denoising performance:
+### Types of Images
 
-1. **Lorem Ipsum Text Images**
-   - Synthetically generated images
-   - Black/white text on colored backgrounds
-   - Various fonts, sizes, and colors
-   - Good for testing edge preservation and readability after denoising
-   - Sharp features make it easy to see artifacts
-
-2. **X-Ray Medical Images**
-   - Real-world medical imaging data
+1. **X-Ray Medical Images** (Primary Focus)
+   - 5000 medical X-ray images
    - Grayscale with varying contrast levels
-   - Contains fine details and textures typical in diagnostic imaging
-   - Tests practical applications in medical image processing
+   - Fine details and textures typical in diagnostic imaging
+   - Noise levels: σ=15, σ=55
+   - Critical for medical image processing applications
 
-3. **Geometric Shapes**
-   - Simple shapes (circles, rectangles, triangles, etc.)
-   - Clean edges and uniform colors
-   - Ideal for quantitative analysis of edge preservation
-   - Provides clear baseline for measuring denoising accuracy
+2. **Synthetic Images** (Text & Shapes)
+   - **Lorem Ipsum Text Images**
+     - Black/white text on colored backgrounds
+     - Various fonts, sizes, and colors
+     - Good for testing edge preservation and readability
+   - **Geometric Shapes**
+     - Simple shapes (circles, rectangles, triangles)
+     - Clean edges and uniform colors
+     - Ideal for quantitative edge preservation analysis
+   - Noise levels: σ=15, σ=25, σ=50
 
-You can add noise to clean images using `Make_Noise.py` which supports both Gaussian and Salt & Pepper noise types.
+3. **Natural Images** (Ready for Expansion)
+   - Currently empty, ready for natural scene images
+   - Will provide texture diversity for training
+   - Complements medical and synthetic data
+
+### Data Split Strategy
+
+- **80% Training:** Used to train DnCNN model
+- **10% Test:** Final evaluation, never seen during training
+- **10% Validation:** Hyperparameter tuning and early stopping
+
+Images are split consistently across all noise levels to maintain correspondence between clean/noisy pairs.
 
 ## Getting Started
 
@@ -86,7 +105,12 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Basic Denoising
+> **Note:** This project has three main scripts with different purposes:
+> - **`main.py`** - For denoising and quick visualization  
+> - **`generate_report.py`** - For comprehensive reports, error maps, PDFs, HTML
+> - **`evaluate.py`** - For batch evaluation to CSV
+
+### Basic Denoising (main.py)
 
 ```bash
 # Denoise with a specific method
@@ -99,7 +123,7 @@ python main.py -n data/noisy -c data/clean -m all -o output/
 python main.py -n data/noisy -c data/clean -m median --iterations 3 --visualize
 ```
 
-### Auto-Tuning Parameters
+### Auto-Tuning Parameters (main.py)
 
 ```bash
 # Auto-tune parameters to find best PSNR
@@ -112,7 +136,7 @@ python main.py -n data/noisy -c data/clean -m nlm --auto-tune --tune-metric ssim
 python main.py -n data/noisy -c data/clean -m median --auto-tune --tune-iterations 30
 ```
 
-### Method Comparison
+### Method Comparison (main.py)
 
 ```bash
 # Compare all methods with metrics and visualization
@@ -125,7 +149,7 @@ python main.py -n data/noisy -c data/clean --compare --num-images 10
 python main.py -n data/noisy -c data/clean -m bilateral --visualize --num-images 5
 ```
 
-### Comprehensive Reports
+### Comprehensive Reports (generate_report.py)
 
 ```bash
 # Generate complete analysis report with all visualizations
@@ -144,7 +168,7 @@ python generate_report.py -n data/noisy -c data/clean --html-report
 python generate_report.py -n data/noisy -c data/clean --pdf-report
 ```
 
-### Batch Evaluation
+### Batch Evaluation (evaluate.py)
 
 ```bash
 # Evaluate all methods and save results to CSV
@@ -154,7 +178,7 @@ python evaluate.py -n data/noisy -c data/clean -o results.csv
 python evaluate.py -n data/noisy -c data/clean --methods gaussian bilateral wiener
 ```
 
-### Noise Estimation
+### Noise Estimation (main.py)
 
 ```bash
 # Estimate noise levels in images
@@ -344,40 +368,110 @@ This helps understand how the filter attenuates different frequency components.
 
 ### ⏳ In Progress
 
-**7. Deep Learning Denoising Models**
-- 📋 DnCNN (placeholder created)
-- 📋 UNet-based denoiser (placeholder created)
-- 📋 Denoising autoencoder (placeholder created)
-- 📋 Diffusion models (placeholder created)
-- 📋 Training pipeline needed
-- 📋 Inference pipeline needed
-- 📋 GPU acceleration setup needed
+**7. Deep Learning Denoising Models - DnCNN Training**
+
+**Current Status:** Preparing dataset and infrastructure for DnCNN training
+
+**What We're Doing Now:**
+- ✅ Dataset preparation with proper splits (80% train / 10% test / 10% validation)
+- ✅ Adding Gaussian noise at multiple sigma levels (σ=15, 25, 55) to XRAY images
+- ✅ Organizing data into structured folders: `data/train/`, `data/test/`, `data/validation/`
+- ✅ Maintaining XRAY-focused distribution (medical imaging priority)
+- ✅ Including synthetic images (shapes, text) and natural images for diversity
+- 🔄 Creating data reorganization utilities (`deep/utils/move_data.py`)
+
+**Dataset Composition:**
+- **XRAY Images** (Largest category, primary focus)
+  - 5000 medical X-ray images
+  - Noise levels: σ=15, σ=55
+  - Location: `data/train/xray/`
+  
+- **Synthetic Images** (Text & shapes)
+  - Lorem ipsum text images with varying fonts/colors
+  - Geometric shapes with clean edges
+  - Noise levels: σ=15, σ=25, σ=50
+  - Location: `data/train/synthetic/`
+  
+- **Natural Images** (Empty for now, ready for expansion)
+  - Location: `data/train/natural/`
+
+**Next Steps (In Order):**
+1. 🔄 Finalize data reorganization script and execute split
+2. 📋 Install PyTorch and dependencies (`torch`, `torchvision`)
+3. 📋 Implement DnCNN architecture (17-layer CNN with residual learning)
+   - Create `deep/dncnn.py` with model definition
+   - Implement residual noise learning (predict noise, not clean image)
+4. 📋 Create PyTorch Dataset class (`deep/dataset.py`)
+   - Wrap existing image loaders from `utils/image_io.py`
+   - Extract 40×40 patches for training
+   - Implement data augmentation (flips, rotations)
+5. 📋 Build training infrastructure (`train.py` or `deep/train_dncnn.py`)
+   - Training loop with GPU support
+   - Validation loop using existing metrics (PSNR/SSIM)
+   - Checkpoint management and model saving
+   - TensorBoard logging for loss curves
+   - Learning rate scheduling
+6. 📋 Create configuration system (`configs/dncnn_train.yaml`)
+   - Model hyperparameters (depth, channels, batch size)
+   - Training parameters (learning rate, epochs, optimizer)
+   - Data paths and augmentation settings
+7. 📋 Implement inference wrapper
+   - Create `dncnn_denoise()` function matching traditional method signatures
+   - Integrate with existing `main.py` CLI (add `-m dncnn` option)
+8. 📋 Training and evaluation
+   - Train on σ=25 Gaussian noise (primary noise level)
+   - Validate generalization on σ=15 and σ=55
+   - Compare DnCNN vs traditional methods (bilateral, NLM, BM3D)
+   - Generate comprehensive reports with `generate_report.py`
+
+**Technical Details:**
+- **Model:** DnCNN-S (17 convolutional layers)
+  - Architecture: Conv + ReLU → (Conv + BatchNorm + ReLU) × 15 → Conv
+  - Residual learning: Network predicts noise, not clean image
+  - Formula: `Clean = Noisy - Predicted_Noise`
+- **Training:** 
+  - Loss: MSE between predicted and actual noise
+  - Optimizer: Adam with learning rate decay
+  - Batch size: 128 patches (40×40)
+  - Data augmentation: Random flips, rotations
+- **Evaluation:** PSNR, SSIM on held-out test set
 
 **8. Configurable Experiment System**
-- 📋 YAML/JSON configs for reproducibility (directory created, not implemented)
+- 📋 YAML/JSON configs for reproducibility (directory created, implementing next)
 
 ### 📋 Planned
 
-**9. Advanced Features**
-- 📋 Train custom deep models
-- 📋 Add self-supervised denoisers
-- 📋 Add real-noise datasets (SIDD, DND)
-- 📋 Error map visualization
-- 📋 Dataset-wide comparison plots
-- 📋 LPIPS perceptual metric
+**9. Advanced DnCNN Features**
+- 📋 Multi-noise-level training (blind denoising model)
+- 📋 Color image support (currently grayscale-focused)
+- 📋 Real-time inference optimization
+- 📋 Model ensemble for improved performance
+- 📋 Transfer learning from pre-trained models
 
-**10. Reporting & Comparison**
+**10. Additional Deep Learning Models**
+- 📋 UNet-based denoiser (encoder-decoder architecture)
+- 📋 Denoising autoencoder (latent space learning)
+- 📋 Diffusion models (state-of-the-art generative approach)
+- 📋 Self-supervised denoisers (Noise2Noise, Noise2Void)
+
+**11. Advanced Features & Datasets**
+- 📋 Real-noise datasets (SIDD, DND) for practical evaluation
+- 📋 Additional noise types (Poisson, speckle, motion blur)
+- 📋 LPIPS perceptual metric for quality assessment
+- 📋 Mixed precision training (faster on modern GPUs)
+
+**12. Reporting & Comparison**
 - 📋 Traditional vs deep learning performance study
-- 📋 Strengths and weaknesses analysis
-- 📋 Automated PDF/HTML report generation
-- 📋 Detailed charts and visualizations
+- 📋 Computational efficiency analysis (speed vs quality)
+- 📋 Strengths and weaknesses analysis per method
+- 📋 Domain-specific performance (medical vs natural vs synthetic)
 
-**11. Stretch Goals**
-- 📋 Optional GUI interface
-- 📋 Web app demo
+**13. Stretch Goals**
+- 📋 Optional GUI interface for interactive denoising
+- 📋 Web app demo with model deployment
 - 📋 Publish as open-source package
-- 📋 Real-time denoising demo
-- 📋 Additional noise types (motion blur, compression artifacts)
+- 📋 Real-time video denoising demo
+- 📋 Integration with medical imaging pipelines
 
 ## References
 

@@ -1,0 +1,73 @@
+# DnCNN Training Configuration for HPCC
+# Optimized for TTU's cluster with GPU nodes
+
+model:
+  depth: 17                    # Number of convolutional layers
+  k_size: 3                    # Kernel size (3x3 is standard)
+  n_channels: 1                # 1 for grayscale, 3 for RGB
+  n_filters: 64                # Number of filters in hidden layers
+
+training:
+  batch_size: 128              # Patches per batch
+  epochs: 50                   # Total training epochs
+  learning_rate: 0.001         # Initial learning rate
+  lr_scheduler: 'ReduceLROnPlateau'  # Learning rate scheduling
+  lr_patience: 5               # Epochs to wait before reducing LR
+  lr_factor: 0.5               # Multiply LR by this when reducing
+  early_stopping: true         # Enable early stopping
+  patience: 10                 # Epochs without improvement before stopping
+  
+  # Loss function
+  loss: 'mse'                  # 'mse' or 'l1'
+  
+  # Optimizer
+  optimizer: 'adam'            # 'adam' or 'sgd'
+  weight_decay: 0.0001         # L2 regularization
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0          # Clip gradients to prevent explosion
+
+data:
+  # Paths (will be set relative to project root)
+  data_root: '/scratch/alejrubi/Project5/data'
+  
+  # Dataset settings
+  categories: ['xray', 'synthetic', 'jellyfish']
+  noise_levels: [15, 25, 55]   # Train on all noise levels (blind denoising)
+  patch_size: 40               # Patch size for training
+  stride: 40                   # Stride for patch extraction
+  augment: true                # Data augmentation (flips, rotations)
+  grayscale: true              # Convert to grayscale
+  
+  # Memory optimization
+  lazy_load: false             # Set false on HPCC (plenty of RAM)
+  max_patches_per_image: 100   # Patches to extract per image
+  max_images: null             # Use all images (null = no limit)
+  
+  # DataLoader settings
+  num_workers: 4               # Parallel data loading
+  pin_memory: true             # Faster GPU transfer
+  prefetch_factor: 2           # Prefetch batches
+
+checkpoints:
+  save_dir: '/scratch/alejrubi/Project5/checkpoints'
+  save_every: 5                # Save checkpoint every N epochs
+  save_best: true              # Save best model based on validation
+  resume: null                 # Path to checkpoint to resume from
+
+logging:
+  log_dir: '/scratch/alejrubi/Project5/logs'
+  tensorboard: true            # Enable TensorBoard logging
+  log_every: 10                # Log metrics every N batches
+  save_samples: true           # Save denoised samples during validation
+  sample_interval: 5           # Save samples every N epochs
+
+validation:
+  validate_every: 1            # Validate every N epochs
+  num_samples: 10              # Number of samples to save for visualization
+
+device:
+  cuda: true                   # Use GPU if available
+  device_ids: [0]              # GPU device IDs to use
+  
+seed: 42                       # Random seed for reproducibility
