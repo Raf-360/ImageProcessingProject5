@@ -8,7 +8,7 @@
 #SBATCH --mem=32G                    # Memory
 #SBATCH --time=24:00:00              # Max runtime (24 hours)
 #SBATCH --mail-type=END,FAIL         # Email notifications
-#SBATCH --mail-user=alejrubi@ttu.edu # Your email
+#SBATCH --mail-user=username@ttu.edu # Your email
 
 # Print job information
 echo "================================================================"
@@ -18,7 +18,7 @@ echo "Start time: $(date)"
 echo "================================================================"
 
 # Navigate to project directory
-cd /scratch/alejrubi/Project5 || exit 1
+cd /scratch/username/Project5 || exit 1
 
 # Load modules
 module purge

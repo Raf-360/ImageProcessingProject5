@@ -29,7 +29,7 @@ training:
 
 data:
   # Paths (will be set relative to project root)
-  data_root: '/scratch/alejrubi/Project5/data'
+  data_root: '/scratch/username/Project5/data'
   
   # Dataset settings
   categories: ['xray', 'synthetic', 'jellyfish']
@@ -50,13 +50,13 @@ data:
   prefetch_factor: 2           # Prefetch batches
 
 checkpoints:
-  save_dir: '/scratch/alejrubi/Project5/checkpoints'
+  save_dir: '/scratch/username/Project5/checkpoints'
   save_every: 5                # Save checkpoint every N epochs
   save_best: true              # Save best model based on validation
   resume: null                 # Path to checkpoint to resume from
 
 logging:
-  log_dir: '/scratch/alejrubi/Project5/logs'
+  log_dir: '/scratch/username/Project5/logs'
   tensorboard: true            # Enable TensorBoard logging
   log_every: 10                # Log metrics every N batches
   save_samples: true           # Save denoised samples during validation

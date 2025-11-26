@@ -4,22 +4,23 @@ Complete guide for training DnCNN image denoising model on TTU's High Performanc
 
 ## 📋 Prerequisites
 
-- TTU HPCC account (username: alejrubi)
+- TTU HPCC account 
 - SSH access to HPCC
-- Data already organized in `/scratch/alejrubi/Project5/data/`
+- VPN Access to HPCC (For off campus)
+- Data already organized in `/scratch/username/Project5/data/`
 
 ## 🚀 Quick Start
 
 ### 1. Connect to HPCC
 
 ```bash
-ssh alejrubi@hpcc.ttu.edu
+ssh username@login.hpcc.ttu.edu
 ```
 
 ### 2. Navigate to Project Directory
 
 ```bash
-cd /scratch/alejrubi/Project5
+cd /scratch/username/Project5
 ```
 
 ### 3. Prepare Data (if not already done)
@@ -28,15 +29,13 @@ If data is not organized into train/test/validation splits:
 
 ```bash
 # From your local machine, copy data to HPCC
-scp -r data/ alejrubi@hpcc.ttu.edu:/scratch/alejrubi/Project5/
+scp -r data/ username@login.hpcc.ttu.edu:/scratch/username/Project5/
 
-# On HPCC, organize data
-python deep/utils/move_data.py
 ```
 
 Expected structure after organization:
 ```
-/scratch/alejrubi/Project5/data/
+/scratch/username/Project5/data/
 ├── train/
 │   ├── xray/
 │   │   ├── clean/
@@ -63,7 +62,7 @@ sbatch scripts/train_hpcc.sh
 
 ```bash
 # Check job status
-squeue -u alejrubi
+squeue -u username
 
 # View live output (replace <job_id> with actual job ID)
 tail -f logs/train_<job_id>.out
@@ -83,7 +82,7 @@ tensorboard --logdir=tensorboard_logs --host=0.0.0.0 --port=6006
 From your local machine:
 ```bash
 # Create SSH tunnel (replace <node_name> with actual compute node)
-ssh -L 6006:<node_name>:6006 alejrubi@hpcc.ttu.edu
+ssh -L 6006:<node_name>:6006 username@login.hpcc.ttu.edu
 
 # Open in browser: http://localhost:6006
 ```
@@ -105,7 +104,7 @@ Configuration file: `configs/dncnn_train.yaml`
 After training, you'll find:
 
 ```
-/scratch/alejrubi/Project5/
+/scratch/username/Project5/
 ├── checkpoints/
 │   ├── checkpoint_best.pth          # Best model (highest validation PSNR)
 │   ├── checkpoint_latest.pth        # Most recent checkpoint
@@ -135,10 +134,10 @@ From your local machine:
 
 ```bash
 # Download best checkpoint
-scp alejrubi@hpcc.ttu.edu:/scratch/alejrubi/Project5/checkpoints/checkpoint_best.pth ./
+scp username@login.hpcc.ttu.edu:/scratch/username/Project5/checkpoints/checkpoint_best.pth ./
 
 # Or download all checkpoints
-scp -r alejrubi@hpcc.ttu.edu:/scratch/alejrubi/Project5/checkpoints ./
+scp -r username@login.hpcc.ttu.edu:/scratch/username/Project5/checkpoints ./
 ```
 
 ## 🧪 Local Testing (Before HPCC)
@@ -189,7 +188,7 @@ The `scripts/train_hpcc.sh` submission script uses:
 - **CPUs:** 8 (for data loading)
 - **Memory:** 32GB
 - **Time limit:** 24 hours
-- **Email:** alejrubi@ttu.edu (notifications on completion/failure)
+- **Email:** username@ttu.edu (notifications on completion/failure)
 
 To modify resources, edit the `#SBATCH` directives in `scripts/train_hpcc.sh`.
 
@@ -199,10 +198,10 @@ To modify resources, edit the `#SBATCH` directives in `scripts/train_hpcc.sh`.
 
 ```bash
 # Check queue
-squeue -u alejrubi
+squeue -u username
 
 # Check reasons
-squeue -u alejrubi --start
+squeue -u username --start
 ```
 
 ### Out of Memory

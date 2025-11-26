@@ -19,12 +19,12 @@ image_denoising/
 │   ├── wiener.py       # Wiener filter
 │   └── bm3d.py         # BM3D (placeholder)
 │
-├── deep/               # Deep learning methods (future)
-│   ├── dncnn.py        # DnCNN
-│   ├── unet_denoiser.py
-│   ├── autoencoder.py
-│   ├── diffusion.py
-│   └── utils.py
+├── deep/               # Deep learning methods
+│   ├── dncnn.py        # DnCNN architecture (17-layer CNN)
+│   ├── dataset.py      # PyTorch dataset with patch extraction
+│   ├── inference.py    # DnCNN inference wrapper for main.py
+│   └── utils/
+│       └── move_data.py  # Data reorganization for train/test/val splits
 │
 ├── utils/              # Utility functions
 │   ├── metrics.py      # PSNR, SSIM, MSE
@@ -214,13 +214,22 @@ python main.py -n data/noisy -c data/clean --estimate-noise
    - Frequency domain filtering
    - Parameters: mysize, noise_variance
 
+### Deep Learning Methods
+
+6. **DnCNN** (`dncnn`)
+   - Deep Convolutional Neural Network
+   - 17-layer CNN with residual learning
+   - Trained on grayscale images with multiple noise levels
+   - Requires trained checkpoint (see Training section)
+   - Parameters: checkpoint_path
+
 ## Command Line Options
 
 ### Main Script (main.py)
 ```
   -n, --noisy PATH          Path to noisy images folder (required)
   -c, --clean PATH          Path to clean images folder (required)
-  -m, --method METHOD       Denoising method: gaussian, median, bilateral, nlm, wiener, all
+  -m, --method METHOD       Denoising method: gaussian, median, bilateral, nlm, wiener, dncnn, all
   -o, --output PATH         Output folder for denoised images
   --num-images N            Number of images to process (default: 5)
   --iterations N            Apply filter N times iteratively (default: 1)
@@ -368,17 +377,23 @@ This helps understand how the filter attenuates different frequency components.
 
 ### ⏳ In Progress
 
-**7. Deep Learning Denoising Models - DnCNN Training**
+**7. Deep Learning Denoising Models - DnCNN**
 
-**Current Status:** Preparing dataset and infrastructure for DnCNN training
+**Current Status:** Implementation complete, ready for HPCC training
 
-**What We're Doing Now:**
+**What We've Completed:**
 - ✅ Dataset preparation with proper splits (80% train / 10% test / 10% validation)
 - ✅ Adding Gaussian noise at multiple sigma levels (σ=15, 25, 55) to XRAY images
 - ✅ Organizing data into structured folders: `data/train/`, `data/test/`, `data/validation/`
 - ✅ Maintaining XRAY-focused distribution (medical imaging priority)
-- ✅ Including synthetic images (shapes, text) and natural images for diversity
-- 🔄 Creating data reorganization utilities (`deep/utils/move_data.py`)
+- ✅ Including synthetic images (shapes, text) and jellyfish images for diversity
+- ✅ Data reorganization utility (`deep/utils/move_data.py`)
+- ✅ DnCNN architecture implementation (`deep/dncnn.py`)
+- ✅ PyTorch dataset with lazy loading and memory optimization (`deep/dataset.py`)
+- ✅ Training script with validation, checkpointing, TensorBoard (`train.py`)
+- ✅ HPCC deployment configuration and SLURM job script (`scripts/train_hpcc.sh`)
+- ✅ Inference wrapper compatible with main.py CLI (`deep/inference.py`)
+- ✅ Complete training configuration (`configs/dncnn_train.yaml`)
 
 **Dataset Composition:**
 - **XRAY Images** (Largest category, primary focus)
@@ -395,49 +410,79 @@ This helps understand how the filter attenuates different frequency components.
 - **Natural Images** (Empty for now, ready for expansion)
   - Location: `data/train/natural/`
 
-**Next Steps (In Order):**
-1. 🔄 Finalize data reorganization script and execute split
-2. 📋 Install PyTorch and dependencies (`torch`, `torchvision`)
-3. 📋 Implement DnCNN architecture (17-layer CNN with residual learning)
-   - Create `deep/dncnn.py` with model definition
-   - Implement residual noise learning (predict noise, not clean image)
-4. 📋 Create PyTorch Dataset class (`deep/dataset.py`)
-   - Wrap existing image loaders from `utils/image_io.py`
-   - Extract 40×40 patches for training
-   - Implement data augmentation (flips, rotations)
-5. 📋 Build training infrastructure (`train.py` or `deep/train_dncnn.py`)
-   - Training loop with GPU support
-   - Validation loop using existing metrics (PSNR/SSIM)
-   - Checkpoint management and model saving
-   - TensorBoard logging for loss curves
-   - Learning rate scheduling
-6. 📋 Create configuration system (`configs/dncnn_train.yaml`)
-   - Model hyperparameters (depth, channels, batch size)
-   - Training parameters (learning rate, epochs, optimizer)
-   - Data paths and augmentation settings
-7. 📋 Implement inference wrapper
-   - Create `dncnn_denoise()` function matching traditional method signatures
-   - Integrate with existing `main.py` CLI (add `-m dncnn` option)
-8. 📋 Training and evaluation
-   - Train on σ=25 Gaussian noise (primary noise level)
-   - Validate generalization on σ=15 and σ=55
-   - Compare DnCNN vs traditional methods (bilateral, NLM, BM3D)
-   - Generate comprehensive reports with `generate_report.py`
+**Next Steps (Training & Evaluation):**
+1. 🔄 Deploy to TTU HPCC and train model
+   - Transfer data to `/scratch/username/Project5/`
+   - Submit SLURM job: `sbatch scripts/train_hpcc.sh`
+   - Monitor training with TensorBoard
+   - Expected training time: ~12-16 hours (50 epochs with early stopping)
+2. 📋 Download trained checkpoint and evaluate performance
+   - Compare DnCNN vs traditional methods (bilateral, NLM, wiener)
+   - Test on held-out test set (10% split)
+   - Validate generalization across noise levels (σ=15, 25, 55)
+3. 📋 Generate comprehensive performance reports
+   - Run `generate_report.py` with DnCNN vs traditional comparison
+   - Analyze PSNR/SSIM improvements over baselines
+   - Create error maps and visual quality comparisons
+4. 📋 Integration testing
+   - Test inference with `python main.py -m dncnn`
+   - Validate batch processing capabilities
+   - Test on new unseen images
 
 **Technical Details:**
-- **Model:** DnCNN-S (17 convolutional layers)
-  - Architecture: Conv + ReLU → (Conv + BatchNorm + ReLU) × 15 → Conv
+- **Model:** DnCNN (17 convolutional layers, 1.5M parameters)
+  - Architecture: Conv(3×3) + ReLU → [Conv(3×3) + BatchNorm + ReLU] × 15 → Conv(3×3)
   - Residual learning: Network predicts noise, not clean image
   - Formula: `Clean = Noisy - Predicted_Noise`
-- **Training:** 
+  - Input/Output: Single-channel grayscale images
+- **Training Configuration:**
   - Loss: MSE between predicted and actual noise
-  - Optimizer: Adam with learning rate decay
+  - Optimizer: Adam (lr=0.001) with ReduceLROnPlateau scheduler
   - Batch size: 128 patches (40×40)
+  - Epochs: 50 (with early stopping at patience=10)
   - Data augmentation: Random flips, rotations
-- **Evaluation:** PSNR, SSIM on held-out test set
+  - Multi-noise training: σ=15, 25, 55 (blind denoising)
+- **Infrastructure:**
+  - Training: TTU HPCC GPU cluster (1 GPU, 8 CPUs, 32GB RAM)
+  - Monitoring: TensorBoard for real-time loss curves
+  - Checkpointing: Best model (validation PSNR), latest, and periodic saves
+- **Evaluation:** PSNR, SSIM on held-out test set (same metrics as traditional methods)
 
-**8. Configurable Experiment System**
-- 📋 YAML/JSON configs for reproducibility (directory created, implementing next)
+**8. Training DnCNN on HPCC**
+
+See `HPCC_TRAINING_GUIDE.md` for complete deployment instructions.
+
+**Quick Start:**
+```bash
+# On HPCC
+ssh username@login.hpcc.ttu.edu
+cd /scratch/username/Project5
+sbatch scripts/train_hpcc.sh
+
+# Monitor training
+squeue -u username
+tail -f logs/train_<job_id>.out
+```
+
+**Local Testing:**
+```bash
+# Test training pipeline locally (small dataset)
+python train.py --config configs/dncnn_train.yaml
+```
+
+**Using Trained Model:**
+```bash
+# Denoise with DnCNN
+python main.py -n data/noisy -c data/clean -m dncnn --visualize
+
+# Compare DnCNN vs traditional methods
+python main.py -n data/noisy -c data/clean --compare --visualize
+```
+
+**9. Configurable Experiment System**
+- ✅ YAML configs for reproducibility (`configs/dncnn_train.yaml`)
+- ✅ SLURM job configuration (`scripts/train_hpcc.sh`)
+- ✅ Modular training script with command-line args
 
 ### 📋 Planned
 
@@ -475,8 +520,18 @@ This helps understand how the filter attenuates different frequency components.
 
 ## References
 
-- Traditional denoising: OpenCV documentation
+### Traditional Methods
+- OpenCV documentation: https://docs.opencv.org/
 - Wiener filter: scipy.signal.wiener
-- Metrics: scikit-image
+- Metrics (PSNR, SSIM): scikit-image
 - Bayesian optimization: scikit-optimize
+
+### Deep Learning
+- **DnCNN Paper:** Zhang et al. "Beyond a Gaussian Denoiser: Residual Learning of Deep CNN for Image Denoising" (IEEE TIP 2017)
+- PyTorch: https://pytorch.org/
+- TensorBoard: https://www.tensorflow.org/tensorboard
+
+### Infrastructure
+- TTU HPCC Documentation: https://www.depts.ttu.edu/hpcc/
+- SLURM Workload Manager: https://slurm.schedmd.com/
 
