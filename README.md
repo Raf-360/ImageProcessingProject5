@@ -8,8 +8,24 @@ This project implements various image denoising techniques, ranging from traditi
 image_denoising/
 │
 ├── data/
-│   ├── noisy/          # Noisy input images (all noise types)
-│   └── clean/          # Clean ground truth images (all types)
+│   ├── clean/              # Original clean images
+│   │   ├── clean_images/   # General clean images
+│   │   ├── koi_fish/       # Koi fish images
+│   │   ├── lorem_ipsum/    # Text images
+│   │   ├── simons_bitchass/ # Additional test images
+│   │   └── XRAY_images/    # Medical X-ray images
+│   ├── noisy/              # Noisy versions (pre-split)
+│   │   ├── gaussian_noise_15_sigma/
+│   │   ├── gaussian_noise_25_sigma/
+│   │   ├── koi_fish_gaussian_25_sigma/
+│   │   ├── simons_bitchass_25_sigma/
+│   │   └── ...
+│   ├── train/              # Training split (80%)
+│   │   ├── xray/
+│   │   ├── synthetic/
+│   │   └── jellyfish/
+│   ├── test/               # Test split (10%)
+│   └── validation/         # Validation split (10%)
 │
 ├── traditional/        # Traditional denoising methods
 │   ├── gaussian.py     # Gaussian blur filter
@@ -30,12 +46,26 @@ image_denoising/
 │   ├── metrics.py      # PSNR, SSIM, MSE
 │   ├── visualization.py # Plotting functions
 │   ├── image_io.py     # Image loading/saving
+│   ├── error_maps.py   # Error map generation
+│   ├── dataset_plots.py # Dataset analysis plots
+│   ├── report_generation.py # HTML/PDF reports
 │   └── noise_estimation.py # Noise level estimation
 │
 ├── configs/            # Configuration files
+│   └── dncnn_train.yaml # DnCNN training config for HPCC
+│
+├── scripts/            # Deployment scripts
+│   └── train_hpcc.sh   # SLURM job submission script
+│
+├── results/            # Denoising output results
+├── reports/            # Generated analysis reports
 │
 ├── main.py             # Main CLI entry point
 ├── evaluate.py         # Batch evaluation script
+├── generate_report.py  # Comprehensive report generation
+├── Make_Images.py      # Generate synthetic images
+├── Make_Noise.py       # Add noise to clean images
+├── train.py            # DnCNN training script
 └── README.md
 ```
 
@@ -45,17 +75,31 @@ All images are organized in the `data/` directory with proper train/test/validat
 
 ```
 data/
-├── train/ (80%)          # Training data
-│   ├── xray/            # Medical X-ray images (primary focus)
-│   ├── synthetic/       # Text and geometric shapes
-│   └── natural/         # Natural scene images
-├── test/ (10%)          # Test data (same structure)
-└── validation/ (10%)    # Validation data (same structure)
+├── clean/                   # Original clean images (pre-split)
+│   ├── XRAY_images/        # 5000 medical X-ray images
+│   ├── clean_images/       # General synthetic images
+│   ├── koi_fish/           # Jellyfish/koi fish images
+│   ├── lorem_ipsum/        # Text images
+│   └── simons_bitchass/    # Additional test images
+├── noisy/                   # Noisy versions (pre-split)
+│   ├── gaussian_noise_15_sigma/
+│   ├── gaussian_noise_25_sigma/
+│   ├── XRAY_gaussian_noise_15_sigma/
+│   ├── koi_fish_gaussian_25_sigma/
+│   └── ...
+├── train/ (80%)            # Training split
+│   ├── xray/
+│   │   ├── clean/
+│   │   ├── gaussian_noise_15_sigma/
+│   │   ├── gaussian_noise_25_sigma/
+│   │   └── gaussian_noise_55_sigma/
+│   ├── synthetic/
+│   │   └── (same structure)
+│   └── jellyfish/
+│       └── (same structure)
+├── test/ (10%)             # Test split (same structure)
+└── validation/ (10%)       # Validation split (same structure)
 ```
-
-Each category contains:
-- `clean/` or `*_images/` - Ground truth clean images
-- `gaussian_noise_*_sigma/` - Noisy versions at different sigma levels
 
 ### Types of Images
 
@@ -63,8 +107,9 @@ Each category contains:
    - 5000 medical X-ray images
    - Grayscale with varying contrast levels
    - Fine details and textures typical in diagnostic imaging
-   - Noise levels: σ=15, σ=55
+   - Noise levels: σ=15, σ=25, σ=55
    - Critical for medical image processing applications
+   - Source: `data/clean/XRAY_images/`
 
 2. **Synthetic Images** (Text & Shapes)
    - **Lorem Ipsum Text Images**
@@ -76,11 +121,14 @@ Each category contains:
      - Clean edges and uniform colors
      - Ideal for quantitative edge preservation analysis
    - Noise levels: σ=15, σ=25, σ=50
+   - Source: `data/clean/clean_images/`, `data/clean/lorem_ipsum/`
 
-3. **Natural Images** (Ready for Expansion)
-   - Currently empty, ready for natural scene images
-   - Will provide texture diversity for training
-   - Complements medical and synthetic data
+3. **Jellyfish/Koi Fish Images**
+   - Underwater and aquatic imagery
+   - Complex textures and organic shapes
+   - Good test of model generalization to natural scenes
+   - Noise levels: σ=25
+   - Source: `data/clean/koi_fish/`
 
 ### Data Split Strategy
 
