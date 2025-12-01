@@ -7,7 +7,7 @@ Complete guide for training DnCNN image denoising model on TTU's High Performanc
 - TTU HPCC account 
 - SSH access to HPCC
 - VPN Access to HPCC (For off campus)
-- Data already organized in `/scratch/username/Project5/data/`
+- Data already organized in `/lustre/work/username/Project5/data/`
 
 ## 🚀 Quick Start
 
@@ -20,7 +20,7 @@ ssh username@login.hpcc.ttu.edu
 ### 2. Navigate to Project Directory
 
 ```bash
-cd /scratch/username/Project5
+cd /lustre/work/username/Project5
 ```
 
 ### 3. Prepare Data (if not already done)
@@ -29,7 +29,7 @@ If data is not organized into train/test/validation splits:
 
 ```bash
 # From your local machine, copy data to HPCC
-scp -r data/ username@login.hpcc.ttu.edu:/scratch/username/Project5/
+scp -r data/ username@login.hpcc.ttu.edu:/lustre/work/username/Project5/
 
 ```
 
@@ -134,10 +134,10 @@ From your local machine:
 
 ```bash
 # Download best checkpoint
-scp username@login.hpcc.ttu.edu:/scratch/username/Project5/checkpoints/checkpoint_best.pth ./
+scp username@login.hpcc.ttu.edu:/lustre/work/username/Project5/checkpoints/checkpoint_best.pth ./
 
 # Or download all checkpoints
-scp -r username@login.hpcc.ttu.edu:/scratch/username/Project5/checkpoints ./
+scp -r username@login.hpcc.ttu.edu:/lustre/work/username/Project5/checkpoints ./
 ```
 
 ## 🧪 Local Testing (Before HPCC)

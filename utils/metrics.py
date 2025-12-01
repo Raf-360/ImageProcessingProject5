@@ -37,7 +37,13 @@ def calculate_ssim(denoised_image: np.ndarray, ground_truth: np.ndarray) -> floa
     Returns:
         Similarity score between -1 and 1
     """
-    return structural_similarity(ground_truth, denoised_image, channel_axis=2, data_range=255)
+    # Detect if grayscale (2D) or RGB (3D)
+    if len(ground_truth.shape) == 2:
+        # Grayscale image - no channel axis
+        return structural_similarity(ground_truth, denoised_image, data_range=255)
+    else:
+        # RGB image - specify channel axis
+        return structural_similarity(ground_truth, denoised_image, channel_axis=2, data_range=255)
 
 
 def calculate_mse(denoised_image: np.ndarray, ground_truth: np.ndarray) -> float:

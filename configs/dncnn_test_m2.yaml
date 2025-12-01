@@ -1,0 +1,74 @@
+# DnCNN Quick Test Configuration for M2 Mac
+# Tests training pipeline with small dataset before full HPCC run
+
+model:
+  depth: 17                    # Number of convolutional layers
+  k_size: 3                    # Kernel size (3x3 is standard)
+  n_filters: 64                # Number of filters in hidden layers
+  # in_channels determined automatically from grayscale setting
+
+training:
+  batch_size: 16               # Reduced from 32 for M2 stability
+  epochs: 2                    # Just 2 epochs to verify it works
+  learning_rate: 0.001         # Initial learning rate
+  lr_scheduler: 'ReduceLROnPlateau'  # Learning rate scheduling
+  lr_patience: 2               # Epochs to wait before reducing LR
+  lr_factor: 0.5               # Multiply LR by this when reducing
+  early_stopping: true         # Enable early stopping
+  patience: 5                  # Epochs without improvement before stopping
+  
+  # Loss function
+  loss: 'mse'                  # 'mse' or 'l1'
+  
+  # Optimizer
+  optimizer: 'adam'            # 'adam' or 'sgd'
+  weight_decay: 0.0001         # L2 regularization
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0          # Clip gradients to prevent explosion
+
+data:
+  # Paths (relative to project root)
+  data_root: './data'
+  
+  # Dataset settings
+  categories: ['xray', 'jellyfish', 'synthetic']         # Just XRAY for quick test
+  noise_levels: [15,25,55]           # Single noise level
+  patch_size: 40               # Patch size for training
+  stride: 40                   # Stride for patch extraction
+  augment: true                # Data augmentation (flips, rotations)
+  grayscale: false             # RGB training (3 channels)
+  
+  # Memory optimization for quick test
+  lazy_load: true             # M2 has enough unified memory
+  max_patches_per_image: 20    # Fewer patches for quick test
+  max_images: 100              # Only 100 images total
+  
+  # DataLoader settings
+  num_workers: 1               # Enable multiprocessing for data loading
+  pin_memory: false            # Not needed for MPS
+  prefetch_factor: 2           # Prefetch batches
+
+checkpoints:
+  save_dir: './checkpoints_test'
+  save_every: 1                # Save every epoch for testing
+  save_best: true              # Save best model based on validation
+  resume: null                 # Path to checkpoint to resume from
+
+logging:
+  log_dir: './tensorboard_logs_test'
+  tensorboard: true            # Enable TensorBoard logging
+  log_every: 10                # Log metrics every 10 batches (more frequent)
+  save_samples: true           # Save denoised samples during validation
+  sample_interval: 1           # Save samples every epoch
+
+validation:
+  validate_every: 1            # Validate every epoch
+  num_samples: 5               # Number of samples to save for visualization
+
+device:
+  cuda: true                   # Will auto-detect MPS on Mac (set to true for auto-detection)
+  use_mps: true                # Enable MPS for M2 Mac
+  device_ids: [0]              # GPU device IDs to use
+  
+seed: 42                       # Random seed for reproducibility

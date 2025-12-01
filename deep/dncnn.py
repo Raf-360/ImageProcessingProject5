@@ -3,22 +3,23 @@ import torch.nn as nn
 
 class DnCNN(nn.Module):
     
-    def __init__(self, depth: int=17, k_size: int=5, n_channels: int=1, n_filters: int=64):
+    def __init__(self, in_channels: int = 3, depth: int = 17, k_size: int = 3, n_filters: int = 64):
         """
         Initialize the Denoising CNN
 
         Args:
-            depth (int, optional): Number of layers in the NN. Defaults to 17.
-            k_size (int, optional): Convolutional Kernal Size. Defaults to 5.
-            n_channels (int, optional):number of channels to process. Defaults to 1.
+            in_channels (int): Number of input/output channels. Defaults to 3.
                 1 -> grayscale
                 3 -> RGB
+            depth (int): Number of convolutional layers. Defaults to 17.
+            k_size (int): Convolutional kernel size. Defaults to 3.
+            n_filters (int): Number of filters in hidden layers. Defaults to 64.
         """
         
         super(DnCNN, self).__init__()
         
         self.depth = depth
-        self.n_channels = n_channels
+        self.in_channels = in_channels
         
         # calculate padding for k_size and image size 
         padding = (k_size - 1) // 2
@@ -31,7 +32,7 @@ class DnCNN(nn.Module):
         # Input noisey image (1 or 3 channels)
         # outout 64 feature maps 
         layers.append(nn.Conv2d(
-            in_channels=n_channels,
+            in_channels=in_channels,
             out_channels=n_filters,
             kernel_size=k_size,
             padding=padding,
@@ -55,7 +56,7 @@ class DnCNN(nn.Module):
         # last layer
         layers.append(nn.Conv2d(
             in_channels=n_filters,
-            out_channels=n_channels,
+            out_channels=in_channels,
             kernel_size=k_size,
             padding=padding,
             bias=False
@@ -133,21 +134,30 @@ if __name__ == "__main__":
     print("Testing DnCNN Architecture")
     print("=" * 70)
     
-    # Create grayscale model
-    model = DnCNN(depth=17, n_channels=1)
-    
-    # Count parameters
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"\nTotal parameters: {total_params:,}")
+    # Test grayscale model
+    print("\n--- Grayscale Model ---")
+    model_gray = DnCNN(in_channels=1, depth=17, n_filters=64)
+    total_params = sum(p.numel() for p in model_gray.parameters())
+    print(f"Total parameters: {total_params:,}")
     print(f"Model size: {total_params * 4 / (1024**2):.2f} MB")
     
-    # Test with dummy data
-    test_input = torch.randn(1, 1, 256, 256)  # 1 grayscale 256×256 image
-    print(f"\nInput shape:  {test_input.shape}")
+    test_input_gray = torch.randn(1, 1, 256, 256)
+    print(f"Input shape:  {test_input_gray.shape}")
+    output_gray = model_gray(test_input_gray)
+    print(f"Output shape: {output_gray.shape}")
+    print(f"Output range: [{output_gray.min():.3f}, {output_gray.max():.3f}]")
     
-    # Forward pass
-    output = model(test_input)
-    print(f"Output shape: {output.shape}")
-    print(f"Output range: [{output.min():.3f}, {output.max():.3f}]")
+    # Test RGB model
+    print("\n--- RGB Model ---")
+    model_rgb = DnCNN(in_channels=3, depth=17, n_filters=64)
+    total_params = sum(p.numel() for p in model_rgb.parameters())
+    print(f"Total parameters: {total_params:,}")
+    print(f"Model size: {total_params * 4 / (1024**2):.2f} MB")
+    
+    test_input_rgb = torch.randn(1, 3, 256, 256)
+    print(f"Input shape:  {test_input_rgb.shape}")
+    output_rgb = model_rgb(test_input_rgb)
+    print(f"Output shape: {output_rgb.shape}")
+    print(f"Output range: [{output_rgb.min():.3f}, {output_rgb.max():.3f}]")
     
     print("\n✓ DnCNN test passed!")

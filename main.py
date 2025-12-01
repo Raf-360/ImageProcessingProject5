@@ -21,7 +21,7 @@ from traditional.nlm import nlm_denoise
 from traditional.wiener import wiener_denoise
 
 
-AVAILABLE_METHODS = ['gaussian', 'median', 'bilateral', 'nlm', 'wiener', 'all']
+AVAILABLE_METHODS = ['gaussian', 'median', 'bilateral', 'nlm', 'wiener', 'dncnn', 'all']
 
 
 def parse_args():
@@ -151,6 +151,11 @@ def denoise_with_method(method_name: str, image, iterations: int = 1, **kwargs):
             result, _ = nlm_denoise(result, **kwargs), None
         elif method_name == 'wiener':
             result, viz_data = wiener_denoise(result, **kwargs)
+        elif method_name == 'dncnn':
+            # Import DnCNN inference
+            from deep.inference import dncnn_denoise
+            checkpoint_path = kwargs.get('checkpoint_path', 'checkpoints/checkpoint_best.pth')
+            result, _ = dncnn_denoise(result, checkpoint_path=checkpoint_path), None
         else:
             raise ValueError(f"Unknown method: {method_name}")
     
@@ -171,7 +176,7 @@ def denoise_all_methods(image, iterations: int = 1):
     viz_data = None
     
     # Apply each method iteratively
-    for method_name in ['gaussian', 'median', 'bilateral', 'nlm', 'wiener']:
+    for method_name in ['gaussian', 'median', 'bilateral', 'nlm', 'wiener', 'dncnn']:
         result = image.copy()
         for i in range(iterations):
             if method_name == 'gaussian':
@@ -184,6 +189,9 @@ def denoise_all_methods(image, iterations: int = 1):
                 result, _ = nlm_denoise(result), None
             elif method_name == 'wiener':
                 result, viz_data = wiener_denoise(result)
+            elif method_name == 'dncnn':
+                from deep.inference import dncnn_denoise
+                result, _ = dncnn_denoise(result, checkpoint_path='checkpoints_test/checkpoint_best.pth'), None
         
         results[method_name] = result
     
@@ -201,7 +209,7 @@ def compare_methods(noisy_image, ground_truth, iterations: int = 1):
     Returns:
         DataFrame with comparison results
     """
-    methods = ['gaussian', 'median', 'bilateral', 'nlm', 'wiener']
+    methods = ['gaussian', 'median', 'bilateral', 'nlm', 'wiener', 'dncnn']
     results_list = []
     
     for method in methods:
@@ -216,7 +224,8 @@ def compare_methods(noisy_image, ground_truth, iterations: int = 1):
             'median': 'kernel=5',
             'bilateral': 'd=15, sigma_c=35.71734057598922, sigma_s=200.0',
             'nlm': 'h=10, tw=7, sw=21',
-            'wiener': 'mysize=7, noise_varience=0.01117'
+            'wiener': 'mysize=7, noise_varience=0.01117',
+            'dncnn': 'checkpoint=checkpoint_best.pth'
         }
         
         result = {

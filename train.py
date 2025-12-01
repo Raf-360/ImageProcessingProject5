@@ -75,22 +75,32 @@ class DnCNNTrainer:
         return config
     
     def setup_device(self) -> torch.device:
-        """Setup compute device (GPU or CPU)."""
-        if self.config['device']['cuda'] and torch.cuda.is_available():
-            device = torch.device('cuda')
-            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        """Setup compute device (GPU, MPS, or CPU)."""
+        if self.config['device']['cuda']:
+            if torch.cuda.is_available():
+                device = torch.device('cuda')
+                print(f"Using CUDA GPU: {torch.cuda.get_device_name(0)}")
+            elif torch.backends.mps.is_available():
+                device = torch.device('mps')
+                print("Using Apple M2 GPU (MPS)")
+            else:
+                device = torch.device('cpu')
+                print("Using CPU (no GPU available)")
         else:
             device = torch.device('cpu')
-            print("Using CPU")
+            print("Using CPU (GPU disabled in config)")
         return device
     
     def build_model(self) -> nn.Module:
         """Build DnCNN model."""
         model_config = self.config['model']
+        
+        data_config = self.config["data"]
+        in_channels = 1 if data_config["grayscale"] else 3
         model = DnCNN(
+            in_channels=in_channels, 
             depth=model_config['depth'],
             k_size=model_config['k_size'],
-            n_channels=model_config['n_channels'],
             n_filters=model_config['n_filters']
         )
         model = model.to(self.device)
@@ -194,8 +204,7 @@ class DnCNNTrainer:
                 self.optimizer,
                 mode='max',  # maximize PSNR
                 factor=self.config['training']['lr_factor'],
-                patience=self.config['training']['lr_patience'],
-                verbose=True
+                patience=self.config['training']['lr_patience']
             )
         elif scheduler_type == 'StepLR':
             return optim.lr_scheduler.StepLR(

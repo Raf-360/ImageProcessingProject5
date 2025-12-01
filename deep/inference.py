@@ -43,21 +43,26 @@ class DnCNNDenoiser:
     
     def _load_model(self) -> DnCNN:
         """Load model from checkpoint."""
-        checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
         
         # Extract model config from checkpoint
         if 'config' in checkpoint:
             model_config = checkpoint['config']['model']
+            data_config = checkpoint['config']['data']
+            
+            # Determine channels from data config
+            in_channels = 1 if data_config.get('grayscale', True) else 3
+            
             model = DnCNN(
+                in_channels=in_channels,
                 depth=model_config['depth'],
                 k_size=model_config['k_size'],
-                n_channels=model_config['n_channels'],
                 n_filters=model_config['n_filters']
             )
         else:
             # Default architecture if config not in checkpoint
             print("Warning: Model config not found in checkpoint, using default architecture")
-            model = DnCNN(depth=17, k_size=5, n_channels=1, n_filters=64)
+            model = DnCNN(in_channels=1, depth=17, k_size=3, n_filters=64)
         
         # Load state dict
         if 'model_state_dict' in checkpoint:
@@ -103,34 +108,65 @@ class DnCNNDenoiser:
             image = noisy_image.astype(np.float32)
             was_uint8 = False
         
-        # Convert to grayscale if needed (DnCNN trained on grayscale)
-        if len(image.shape) == 3:
-            # RGB to grayscale
-            if image.shape[2] == 3:
+        # Determine expected channels from model
+        model_channels = self.model.in_channels
+        
+        # Handle channel conversion based on model expectations
+        if len(image.shape) == 2:
+            # Grayscale input (H, W)
+            if model_channels == 3:
+                # Model expects RGB, replicate grayscale to 3 channels
+                image = np.stack([image] * 3, axis=2)
+            # else: grayscale model, keep as is
+        elif len(image.shape) == 3:
+            # Color input (H, W, C)
+            if image.shape[2] == 3 and model_channels == 1:
+                # RGB input but model expects grayscale
                 image = 0.299 * image[:, :, 0] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 2]
+            elif image.shape[2] == 1 and model_channels == 3:
+                # Single channel input but model expects RGB
+                image = np.repeat(image, 3, axis=2)
             elif image.shape[2] == 1:
+                # Squeeze single channel
                 image = image[:, :, 0]
         
-        # Add batch and channel dimensions: (H, W) -> (1, 1, H, W)
-        image_tensor = torch.from_numpy(image).unsqueeze(0).unsqueeze(0).float()
+        # Convert to tensor with proper dimensions
+        if len(image.shape) == 2:
+            # Grayscale: (H, W) -> (1, 1, H, W)
+            image_tensor = torch.from_numpy(image).unsqueeze(0).unsqueeze(0).float()
+        else:
+            # RGB: (H, W, 3) -> (1, 3, H, W)
+            image_tensor = torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0).float()
+        
         image_tensor = image_tensor.to(self.device)
         
         # Denoise
         denoised_tensor = self.model(image_tensor)
         
         # Convert back to numpy
-        denoised = denoised_tensor.squeeze().cpu().numpy()
+        if model_channels == 1:
+            # Grayscale: (1, 1, H, W) -> (H, W)
+            denoised = denoised_tensor.squeeze().cpu().numpy()
+        else:
+            # RGB: (1, 3, H, W) -> (H, W, 3)
+            denoised = denoised_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()
         
         # Clip to valid range
         denoised = np.clip(denoised, 0, 1)
         
-        # Restore original format
-        if len(original_shape) == 3:
-            # If original was RGB, replicate grayscale to 3 channels
+        # Match original shape format
+        if len(original_shape) == 3 and len(denoised.shape) == 2:
+            # Original was (H, W, C) but result is (H, W), expand
             if original_shape[2] == 3:
                 denoised = np.stack([denoised] * 3, axis=2)
-            elif original_shape[2] == 1:
+            else:
                 denoised = denoised[:, :, np.newaxis]
+        elif len(original_shape) == 2 and len(denoised.shape) == 3:
+            # Original was (H, W) but result is (H, W, C), convert to grayscale
+            if denoised.shape[2] == 3:
+                denoised = 0.299 * denoised[:, :, 0] + 0.587 * denoised[:, :, 1] + 0.114 * denoised[:, :, 2]
+            else:
+                denoised = denoised[:, :, 0]
         
         # Convert back to uint8 if needed
         if was_uint8:

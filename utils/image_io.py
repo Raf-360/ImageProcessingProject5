@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional
 
 def load_images(image_path: Path) -> List[np.ndarray]:
     """
-    Load all PNG images from a directory.
+    Load all image files from a directory (supports png, jpg, jpeg).
     
     Args:
         image_path: Directory containing images
@@ -20,7 +20,15 @@ def load_images(image_path: Path) -> List[np.ndarray]:
     """
     loaded_images = []
     if image_path.exists():
-        image_files = sorted(list(image_path.rglob("*.png")))
+        # Support multiple image formats
+        image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.JPG', '*.JPEG', '*.PNG']
+        image_files = []
+        for ext in image_extensions:
+            image_files.extend(image_path.rglob(ext))
+        
+        # Sort for consistent ordering
+        image_files = sorted(image_files)
+        
         for img_path in image_files:
             img = cv.imread(str(img_path))
             if img is not None:

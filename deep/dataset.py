@@ -23,10 +23,10 @@ class DenoisingDataset(Dataset):
         patch_size: int = 40,  
         stride: int = 40,  
         augment: bool = True,
-        grayscale: bool = True,
-        max_patches_per_image: int = 20,  # ✅ Reduced to 20
-        max_images: int = 100,  # ✅ START WITH ONLY 100 IMAGES FOR TESTING!
-        lazy_load: bool = False  # ✅ Set True to load patches on-the-fly (saves memory)
+        grayscale: bool = False,
+        max_patches_per_image: int = 20, 
+        max_images: int = 100,  
+        lazy_load: bool = True  
     ):
         super().__init__()
         
@@ -40,11 +40,13 @@ class DenoisingDataset(Dataset):
         self.max_images = max_images
         self.augment = augment and (split == 'train')
         self.grayscale = grayscale
+        self.lazy_load = lazy_load  # Store lazy_load as instance variable
         
         # Storage for patches
         self.clean_patches = []
         self.noisy_patches = []
         self.noise_levels_per_patch = []  # Track which noise level each patch has
+        self.image_pairs = []  # For lazy loading
         
         # Load and extract patches
         self._load_dataset()       
@@ -144,18 +146,17 @@ class DenoisingDataset(Dataset):
                     
     def _extract_patches_from_pair(self, clean_path: Path, noisy_path: Path, noise_level: int):
         """Extract matching patches from a clean/noisy image pair."""
-        # Load images
-        clean_img = cv.imread(str(clean_path), cv.IMREAD_UNCHANGED)
-        noisy_img = cv.imread(str(noisy_path), cv.IMREAD_UNCHANGED)
+        # Load images - always in grayscale if needed
+        if self.grayscale:
+            clean_img = cv.imread(str(clean_path), cv.IMREAD_GRAYSCALE)
+            noisy_img = cv.imread(str(noisy_path), cv.IMREAD_GRAYSCALE)
+        else:
+            clean_img = cv.imread(str(clean_path), cv.IMREAD_COLOR)
+            noisy_img = cv.imread(str(noisy_path), cv.IMREAD_COLOR)
         
         if clean_img is None or noisy_img is None:
             print(f"Warning: Failed to load {clean_path.name}")
             return
-        
-        # Convert to grayscale if needed
-        if self.grayscale and len(clean_img.shape) == 3:
-            clean_img = cv.cvtColor(clean_img, cv.COLOR_BGR2GRAY)
-            noisy_img = cv.cvtColor(noisy_img, cv.COLOR_BGR2GRAY)
         
         # Normalize to [0, 1]
         clean_img = clean_img.astype(np.float32) / 255.0
@@ -175,10 +176,12 @@ class DenoisingDataset(Dataset):
                 clean_patch = clean_img[i:i+self.patch_size, j:j+self.patch_size]
                 noisy_patch = noisy_img[i:i+self.patch_size, j:j+self.patch_size]
                 
-                # Store patches
-                self.clean_patches.append(clean_patch)
-                self.noisy_patches.append(noisy_patch)
-                self.noise_levels_per_patch.append(noise_level)
+                # Validate patch size before storing
+                if clean_patch.shape[0] == self.patch_size and clean_patch.shape[1] == self.patch_size:
+                    # Store patches
+                    self.clean_patches.append(clean_patch)
+                    self.noisy_patches.append(noisy_patch)
+                    self.noise_levels_per_patch.append(noise_level)
         else:
             # Grid sampling for validation/test (deterministic)
             for i in range(0, h - self.patch_size + 1, self.stride):
@@ -186,12 +189,12 @@ class DenoisingDataset(Dataset):
                     clean_patch = clean_img[i:i+self.patch_size, j:j+self.patch_size]
                     noisy_patch = noisy_img[i:i+self.patch_size, j:j+self.patch_size]
                     
-                    # Store patches
-                    self.clean_patches.append(clean_patch)
-                    self.noisy_patches.append(noisy_patch)
-                    self.noise_levels_per_patch.append(noise_level) 
-                
-    
+                    # Validate patch size before storing
+                    if clean_patch.shape[0] == self.patch_size and clean_patch.shape[1] == self.patch_size:
+                        # Store patches
+                        self.clean_patches.append(clean_patch)
+                        self.noisy_patches.append(noisy_patch)
+                        self.noise_levels_per_patch.append(noise_level)    
     def _get_image_files(self, folder: Path) -> List[Path]:
         extensions = {".png", ".jpeg", ".jpg"}
         
@@ -239,56 +242,116 @@ class DenoisingDataset(Dataset):
             Tuple of (noisy_patch, clean_patch) as torch tensors
             Shape: (C, H, W) where C=1 for grayscale, C=3 for RGB
         """
-        if self.lazy_load:
-            # Load patch on-the-fly
-            img_idx = idx // self.max_patches_per_image
-            patch_idx = idx % self.max_patches_per_image
+        try:
+            if self.lazy_load:
+                # Load patch on-the-fly
+                img_idx = idx // self.max_patches_per_image
+                patch_idx = idx % self.max_patches_per_image
+                
+                clean_path, noisy_path, noise_level = self.image_pairs[img_idx]
+                
+                # Load full images - always in grayscale if needed
+                if self.grayscale:
+                    clean_img = cv.imread(str(clean_path), cv.IMREAD_GRAYSCALE)
+                    noisy_img = cv.imread(str(noisy_path), cv.IMREAD_GRAYSCALE)
+                else:
+                    clean_img = cv.imread(str(clean_path), cv.IMREAD_COLOR)
+                    noisy_img = cv.imread(str(noisy_path), cv.IMREAD_COLOR)
+                
+                if clean_img is None or noisy_img is None:
+                    raise RuntimeError(f"Failed to load: {clean_path.name}")
+                
+                # Normalize
+                clean_img = clean_img.astype(np.float32) / 255.0
+                noisy_img = noisy_img.astype(np.float32) / 255.0
+                
+                # Extract random patch
+                h, w = clean_img.shape[:2]
+                
+                # Ensure image is large enough for patch
+                if h < self.patch_size or w < self.patch_size:
+                    # Pad image if too small
+                    pad_h = max(0, self.patch_size - h)
+                    pad_w = max(0, self.patch_size - w)
+                    clean_img = np.pad(clean_img, ((0, pad_h), (0, pad_w)), mode='reflect')
+                    noisy_img = np.pad(noisy_img, ((0, pad_h), (0, pad_w)), mode='reflect')
+                    h, w = clean_img.shape[:2]
+                
+                i = random.randint(0, h - self.patch_size)
+                j = random.randint(0, w - self.patch_size)
+                
+                clean_patch = clean_img[i:i+self.patch_size, j:j+self.patch_size]
+                noisy_patch = noisy_img[i:i+self.patch_size, j:j+self.patch_size]
+            else:
+                # Get pre-extracted patch
+                clean_patch = self.clean_patches[idx].copy()
+                noisy_patch = self.noisy_patches[idx].copy()
+                
+                # Ensure grayscale if needed
+                if self.grayscale:
+                    if len(clean_patch.shape) == 3:
+                        clean_patch = cv.cvtColor((clean_patch * 255).astype(np.uint8), cv.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+                    if len(noisy_patch.shape) == 3:
+                        noisy_patch = cv.cvtColor((noisy_patch * 255).astype(np.uint8), cv.COLOR_BGR2GRAY).astype(np.float32) / 255.0
             
-            clean_path, noisy_path, noise_level = self.image_pairs[img_idx]
+            # FORCE exact patch size (crop or pad if needed)
+            if clean_patch.shape[0] != self.patch_size or clean_patch.shape[1] != self.patch_size:
+                # Create fixed-size arrays
+                fixed_clean = np.zeros((self.patch_size, self.patch_size), dtype=np.float32)
+                fixed_noisy = np.zeros((self.patch_size, self.patch_size), dtype=np.float32)
+                
+                # Copy what we can
+                h_copy = min(clean_patch.shape[0], self.patch_size)
+                w_copy = min(clean_patch.shape[1], self.patch_size)
+                fixed_clean[:h_copy, :w_copy] = clean_patch[:h_copy, :w_copy]
+                fixed_noisy[:h_copy, :w_copy] = noisy_patch[:h_copy, :w_copy]
+                
+                clean_patch = fixed_clean
+                noisy_patch = fixed_noisy
             
-            # Load full images
-            clean_img = cv.imread(str(clean_path), cv.IMREAD_UNCHANGED)
-            noisy_img = cv.imread(str(noisy_path), cv.IMREAD_UNCHANGED)
+            # Apply augmentation if enabled
+            if self.augment:
+                clean_patch, noisy_patch = self._augment(clean_patch, noisy_patch)
             
-            # Convert to grayscale if needed
-            if self.grayscale and len(clean_img.shape) == 3:
-                clean_img = cv.cvtColor(clean_img, cv.COLOR_BGR2GRAY)
-                noisy_img = cv.cvtColor(noisy_img, cv.COLOR_BGR2GRAY)
+            # Ensure contiguous arrays and correct dtype
+            clean_patch = np.ascontiguousarray(clean_patch, dtype=np.float32)
+            noisy_patch = np.ascontiguousarray(noisy_patch, dtype=np.float32)
             
-            # Normalize
-            clean_img = clean_img.astype(np.float32) / 255.0
-            noisy_img = noisy_img.astype(np.float32) / 255.0
+            # Verify shape before adding channel dimension
+            if self.grayscale:
+                assert clean_patch.shape == (self.patch_size, self.patch_size), \
+                f"idx={idx}: Wrong shape {clean_patch.shape}, expected ({self.patch_size}, {self.patch_size})"
+            else:
+                assert clean_patch.shape == (self.patch_size, self.patch_size, 3), \
+                f"idx={idx}: Wrong shape {clean_patch.shape}, expected ({self.patch_size}, {self.patch_size})"
             
-            # Extract random patch
-            h, w = clean_img.shape[:2]
-            i = random.randint(0, max(0, h - self.patch_size))
-            j = random.randint(0, max(0, w - self.patch_size))
+            # Add channel dimension for grayscale: (H, W) -> (1, H, W)
+            if len(clean_patch.shape) == 2:
+                clean_patch = clean_patch[np.newaxis, ...]
+                noisy_patch = noisy_patch[np.newaxis, ...]
+            else:
+                # RGB: (H, W, C) -> (C, H, W)
+                clean_patch = np.transpose(clean_patch, (2, 0, 1))
+                noisy_patch = np.transpose(noisy_patch, (2, 0, 1))
             
-            clean_patch = clean_img[i:i+self.patch_size, j:j+self.patch_size]
-            noisy_patch = noisy_img[i:i+self.patch_size, j:j+self.patch_size]
-        else:
-            # Get pre-extracted patch
-            clean_patch = self.clean_patches[idx].copy()
-            noisy_patch = self.noisy_patches[idx].copy()
-        
-        # Apply augmentation if enabled
-        if self.augment:
-            clean_patch, noisy_patch = self._augment(clean_patch, noisy_patch)
-        
-        # Add channel dimension for grayscale: (H, W) -> (1, H, W)
-        if len(clean_patch.shape) == 2:
-            clean_patch = clean_patch[np.newaxis, ...]
-            noisy_patch = noisy_patch[np.newaxis, ...]
-        else:
-            # RGB: (H, W, C) -> (C, H, W)
-            clean_patch = np.transpose(clean_patch, (2, 0, 1))
-            noisy_patch = np.transpose(noisy_patch, (2, 0, 1))
-        
-        # Convert to torch tensors
-        clean_tensor = torch.from_numpy(clean_patch).float()
-        noisy_tensor = torch.from_numpy(noisy_patch).float()
-        
-        return noisy_tensor, clean_tensor
+            # Convert to torch tensors with explicit contiguous
+            clean_tensor = torch.from_numpy(clean_patch).float().contiguous()
+            noisy_tensor = torch.from_numpy(noisy_patch).float().contiguous()
+            
+            # Final verification
+            assert clean_tensor.shape == noisy_tensor.shape, \
+                f"idx={idx}: Tensor shape mismatch {clean_tensor.shape} vs {noisy_tensor.shape}"
+            assert clean_tensor.is_contiguous() and noisy_tensor.is_contiguous(), \
+                f"idx={idx}: Tensors not contiguous"
+            
+            return noisy_tensor, clean_tensor
+            
+        except Exception as e:
+            print(f"\n!!! ERROR at idx={idx} !!!")
+            print(f"Error: {e}")
+            if self.lazy_load and 'clean_path' in locals():
+                print(f"Image: {clean_path.name}")
+            raise
     
     
     def _augment(self, clean: np.ndarray, noisy: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
