@@ -1,8 +1,71 @@
-# Image directories
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+.venv/
+.project5/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# All image directories (excluding results/)
 gaussian_noise_10_sigma/
 gaussian_noise_15_sigma/
 gaussian_noise_25_sigma/
 Noise_Images_Salt_And_Pepper_10_Percent/
 Noise_Images_Salt_And_Pepper_2_percent/
+XRAY_images/
+data/noisy/
+data/clean/
+clean_images/
+*/images/
+*_images/
+image_*/
+
+# Output directories (excluding results/)
+output/
+denoised_output/
+reports/
+
+# Model files
+*.pth
+*.h5
+*.ckpt
+*.pt
+models/weights/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Text files (excluding requirements.txt)
+*.txt
+!requirements.txt
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
 
 
