@@ -42,29 +42,10 @@ class DnCNNDenoiser:
         print(f"Running on: {self.device}")
     
     def _load_model(self) -> DnCNN:
-        """Load model from checkpoint."""
+        """Load model from checkpoint with automatic bias detection."""
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
         
-        # Extract model config from checkpoint
-        if 'config' in checkpoint:
-            model_config = checkpoint['config']['model']
-            data_config = checkpoint['config']['data']
-            
-            # Determine channels from data config
-            in_channels = 1 if data_config.get('grayscale', True) else 3
-            
-            model = DnCNN(
-                in_channels=in_channels,
-                depth=model_config['depth'],
-                k_size=model_config['k_size'],
-                n_filters=model_config['n_filters']
-            )
-        else:
-            # Default architecture if config not in checkpoint
-            print("Warning: Model config not found in checkpoint, using default architecture")
-            model = DnCNN(in_channels=1, depth=17, k_size=3, n_filters=64)
-        
-        # Load state dict
+        # Get state dict
         if 'model_state_dict' in checkpoint:
             state_dict = checkpoint['model_state_dict']
         else:
@@ -79,8 +60,35 @@ class DnCNNDenoiser:
                 new_state_dict[name] = v
             state_dict = new_state_dict
         
-        # Load with strict=False to ignore bias terms from old models
-        model.load_state_dict(state_dict, strict=False)
+        # Detect in_channels from first conv layer
+        first_layer_key = 'dncnn.0.weight'
+        if first_layer_key in state_dict:
+            in_channels = state_dict[first_layer_key].shape[1]  # (out_channels, in_channels, H, W)
+            print(f"   Detected {in_channels} input channels from model weights")
+        else:
+            in_channels = 1
+            print(f"   Using default: 1 channel (grayscale)")
+        
+        # Detect if model was trained with bias by checking if bias keys exist
+        has_bias = 'dncnn.0.bias' in state_dict
+        
+        if has_bias:
+            print(f"   Loading WITH bias=True architecture")
+            from deep.dncnn_with_bias import DnCNNWithBias
+            model = DnCNNWithBias(in_channels=in_channels, depth=17, k_size=3, n_filters=64)
+        else:
+            print(f"   Loading WITHOUT bias=False architecture")
+            model = DnCNN(in_channels=in_channels, depth=17, k_size=3, n_filters=64)
+        
+        # Load state dict (strict=True now since architecture should match)
+        try:
+            model.load_state_dict(state_dict, strict=True)
+            print(f"   ✓ DnCNN model loaded successfully ({in_channels}-channel, bias={has_bias})")
+        except RuntimeError as e:
+            print(f"   ⚠️  Strict loading failed, trying with strict=False")
+            model.load_state_dict(state_dict, strict=False)
+            print(f"   ✓ DnCNN model loaded with strict=False ({in_channels}-channel)")
+        
         model = model.to(self.device)
         
         return model
