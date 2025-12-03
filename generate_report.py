@@ -14,32 +14,112 @@ from utils.dataset_plots import (plot_metrics_distribution, plot_method_comparis
                                  plot_per_image_performance)
 from utils.report_generation import generate_html_report, generate_pdf_report
 from utils.metrics import calculate_psnr, calculate_ssim, calculate_mse
+from utils.noise_estimation import estimate_noise_level
 import time
 import numpy as np
+import cv2 as cv
 
 from main import denoise_all_methods, denoise_with_method
+from deep.inference import DnCNNDenoiser
+from skimage.restoration import richardson_lucy
+from skimage.filters import gaussian as sk_gaussian
 
-def evaluate_all_methods(noisy_images: list, clean_images: list) -> pd.DataFrame:
+def evaluate_all_methods(noisy_images: list, clean_images: list, 
+                        dncnn_model_path: str = None, 
+                        save_images: bool = False,
+                        output_dir: Path = None,
+                        noise_type: str = 'gaussian') -> pd.DataFrame:
     """
     Evaluate all denoising methods on provided images.
     
     Args:
         noisy_images: List of noisy images
         clean_images: List of clean images
+        dncnn_model_path: Optional path to DnCNN model checkpoint
+        save_images: Whether to save denoised images
+        output_dir: Directory to save images to
+        noise_type: Type of noise ('gaussian', 'salt_pepper', 'motion_blur')
     
     Returns:
         DataFrame with evaluation results
     """
-    methods = ['gaussian', 'median', 'bilateral', 'nlm', 'wiener']
+    # Select best traditional method based on noise type
+    if noise_type == 'salt_pepper':
+        methods = ['median']
+    elif noise_type == 'gaussian':
+        methods = ['bilateral']
+    elif noise_type == 'motion_blur':
+        methods = ['lucy_richardson']
+    else:
+        # Fallback to bilateral for unknown noise types
+        methods = ['bilateral']
+    
     results_list = []
     
+    # Create images directory if saving
+    images_dir = None
+    if save_images and output_dir:
+        images_dir = output_dir / "denoised_images"
+        images_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Create subdirectories for each method
+        for method in methods:
+            (images_dir / method).mkdir(exist_ok=True)
+        
+        # Create directories for original images
+        (images_dir / "clean").mkdir(exist_ok=True)
+        (images_dir / "noisy").mkdir(exist_ok=True)
+    
+    # Load DnCNN if model path provided
+    dncnn_denoiser = None
+    if dncnn_model_path:
+        try:
+            dncnn_denoiser = DnCNNDenoiser(dncnn_model_path)
+            print(f"✓ Loaded DnCNN model from {dncnn_model_path}")
+            if images_dir:
+                (images_dir / "dncnn").mkdir(exist_ok=True)
+        except Exception as e:
+            print(f"⚠️  Could not load DnCNN model: {e}")
+    
     for img_idx, (noisy, clean) in enumerate(zip(noisy_images, clean_images)):
+        # Save clean and noisy images if requested
+        if images_dir:
+            cv.imwrite(str(images_dir / "clean" / f"image_{img_idx + 1}.png"), clean)
+            cv.imwrite(str(images_dir / "noisy" / f"image_{img_idx + 1}.png"), noisy)
+        
         for method in methods:
             start_time = time.time()
             
-            # Denoise
-            denoised, _ = denoise_with_method(method, noisy)
+            # Denoise based on method
+            if method == 'lucy_richardson':
+                # Lucy-Richardson deconvolution for motion blur
+                # Create motion blur PSF (Point Spread Function)
+                psf = np.zeros((15, 15))
+                psf[7, :] = 1.0  # Horizontal motion blur
+                psf = psf / psf.sum()
+                
+                # Convert to float for processing
+                noisy_float = noisy.astype(np.float64) / 255.0
+                
+                # Apply Lucy-Richardson per channel
+                if len(noisy.shape) == 3:
+                    denoised_float = np.zeros_like(noisy_float)
+                    for c in range(3):
+                        denoised_float[:, :, c] = richardson_lucy(noisy_float[:, :, c], psf, num_iter=30)
+                else:
+                    denoised_float = richardson_lucy(noisy_float, psf, num_iter=30)
+                
+                # Convert back to uint8
+                denoised = (np.clip(denoised_float, 0, 1) * 255).astype(np.uint8)
+            else:
+                # Use existing methods
+                denoised, _ = denoise_with_method(method, noisy)
+            
             elapsed = time.time() - start_time
+            
+            # Save denoised image if requested
+            if images_dir:
+                cv.imwrite(str(images_dir / method / f"image_{img_idx + 1}.png"), denoised)
             
             # Calculate metrics
             psnr = calculate_psnr(denoised, clean)
@@ -48,6 +128,49 @@ def evaluate_all_methods(noisy_images: list, clean_images: list) -> pd.DataFrame
             
             results_list.append({
                 'Method': method,
+                'Image': img_idx + 1,
+                'PSNR': psnr,
+                'SSIM': ssim,
+                'MSE': mse,
+                'Time': elapsed
+            })
+        
+        # Evaluate DnCNN if available
+        if dncnn_denoiser:
+            start_time = time.time()
+            
+            # Convert image for model if needed
+            model_channels = dncnn_denoiser.model.in_channels
+            if model_channels == 1 and len(noisy.shape) == 3:
+                noisy_for_model = cv.cvtColor(noisy, cv.COLOR_BGR2GRAY)
+                clean_for_eval = cv.cvtColor(clean, cv.COLOR_BGR2GRAY)
+            elif model_channels == 3 and len(noisy.shape) == 2:
+                noisy_for_model = cv.cvtColor(noisy, cv.COLOR_GRAY2BGR)
+                clean_for_eval = clean
+            else:
+                noisy_for_model = noisy
+                clean_for_eval = clean
+            
+            # Denoise with DnCNN
+            denoised = dncnn_denoiser.denoise(noisy_for_model)
+            elapsed = time.time() - start_time
+            
+            # Save denoised image if requested
+            if images_dir:
+                # Convert back to BGR if needed for saving
+                if len(denoised.shape) == 2:
+                    denoised_to_save = cv.cvtColor(denoised, cv.COLOR_GRAY2BGR)
+                else:
+                    denoised_to_save = denoised
+                cv.imwrite(str(images_dir / "dncnn" / f"image_{img_idx + 1}.png"), denoised_to_save)
+            
+            # Calculate metrics
+            psnr = calculate_psnr(denoised, clean_for_eval)
+            ssim = calculate_ssim(denoised, clean_for_eval)
+            mse = calculate_mse(denoised, clean_for_eval)
+            
+            results_list.append({
+                'Method': 'dncnn',
                 'Image': img_idx + 1,
                 'PSNR': psnr,
                 'SSIM': ssim,
@@ -123,6 +246,21 @@ def parse_args():
         help="Number of images to process (default: 5)"
     )
     
+    parser.add_argument(
+        "--dncnn-model",
+        type=str,
+        default=None,
+        help="Path to DnCNN model checkpoint (optional)"
+    )
+    
+    parser.add_argument(
+        "--noise-type",
+        type=str,
+        choices=["gaussian", "salt_pepper", "motion_blur"],
+        default="gaussian",
+        help="Type of noise in images (default: gaussian)"
+    )
+    
     return parser.parse_args()
 
 
@@ -163,9 +301,34 @@ def main():
         
         # Run evaluation to get results
         print("🔄 Evaluating all methods...")
-        results_df = evaluate_all_methods(noisy_images[:num_to_process], 
-                                         clean_images[:num_to_process])
+        print(f"  Noise type: {args.noise_type}")
+        results_df = evaluate_all_methods(
+            noisy_images[:num_to_process], 
+            clean_images[:num_to_process],
+            dncnn_model_path=args.dncnn_model,
+            save_images=True,
+            output_dir=output_path,
+            noise_type=args.noise_type
+        )
         print(f"✓ Evaluation complete\n")
+        
+        # Generate image histograms with noise levels
+        if args.error_maps or args.all:
+            print("📊 Generating image histograms with noise analysis...")
+            from utils.report_generation import generate_histogram_with_noise
+            
+            histograms_dir = output_path / "histograms"
+            histograms_dir.mkdir(exist_ok=True)
+            
+            for idx in range(min(3, num_to_process)):
+                hist_path = histograms_dir / f"histogram_image_{idx + 1}.png"
+                generate_histogram_with_noise(
+                    clean_images[idx], 
+                    noisy_images[idx],
+                    save_path=str(hist_path),
+                    show=False
+                )
+            print(f"✓ Histograms saved to {histograms_dir}\n")
         
         # Generate error maps
         if args.error_maps:

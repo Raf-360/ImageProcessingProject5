@@ -1,6 +1,4 @@
-"""
-HTML and PDF report generation utilities.
-"""
+
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,6 +7,8 @@ from datetime import datetime
 from typing import Dict, List, Optional
 import base64
 from io import BytesIO
+import numpy as np
+import cv2 as cv
 
 
 def fig_to_base64(fig) -> str:
@@ -19,6 +19,123 @@ def fig_to_base64(fig) -> str:
     img_str = base64.b64encode(buf.read()).decode('utf-8')
     buf.close()
     return img_str
+
+
+def generate_histogram_with_noise(clean_img: np.ndarray, noisy_img: np.ndarray,
+                                  save_path: str = None, show: bool = True) -> plt.Figure:
+    """
+    Generate histogram comparison with noise level estimation.
+    Shows clean vs noisy image histograms in grayscale with noise statistics.
+    
+    Args:
+        clean_img: Clean reference image
+        noisy_img: Noisy image
+        save_path: Optional path to save the figure
+        show: Whether to display the figure
+    
+    Returns:
+        matplotlib Figure object
+    """
+    from utils.noise_estimation import estimate_noise_level
+    
+    # Convert to grayscale for analysis
+    if len(clean_img.shape) == 3:
+        clean_gray = cv.cvtColor(clean_img, cv.COLOR_BGR2GRAY)
+        noisy_gray = cv.cvtColor(noisy_img, cv.COLOR_BGR2GRAY)
+    else:
+        clean_gray = clean_img
+        noisy_gray = noisy_img
+    
+    # Estimate noise level
+    noise_level = estimate_noise_level(noisy_img)
+    
+    # Calculate noise (difference)
+    noise = noisy_gray.astype(np.float32) - clean_gray.astype(np.float32)
+    
+    # Create figure with 2x2 layout
+    fig = plt.figure(figsize=(14, 10))
+    gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.3)
+    
+    # Top left: Clean image
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax1.imshow(clean_gray, cmap='gray', vmin=0, vmax=255)
+    ax1.set_title('Clean Image (Grayscale)', fontsize=12, fontweight='bold')
+    ax1.axis('off')
+    
+    # Top right: Noisy image
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax2.imshow(noisy_gray, cmap='gray', vmin=0, vmax=255)
+    ax2.set_title(f'Noisy Image (σ ≈ {noise_level:.4f})', fontsize=12, fontweight='bold')
+    ax2.axis('off')
+    
+    # Bottom left: Histograms comparison
+    ax3 = fig.add_subplot(gs[1, 0])
+    ax3.hist(clean_gray.ravel(), bins=256, range=(0, 256), 
+             alpha=0.6, color='blue', label='Clean', density=True)
+    ax3.hist(noisy_gray.ravel(), bins=256, range=(0, 256), 
+             alpha=0.6, color='red', label='Noisy', density=True)
+    ax3.set_xlabel('Pixel Intensity', fontsize=10)
+    ax3.set_ylabel('Normalized Frequency', fontsize=10)
+    ax3.set_title('Intensity Distribution Comparison', fontsize=12, fontweight='bold')
+    ax3.legend()
+    ax3.grid(True, alpha=0.3)
+    
+    # Bottom right: Noise statistics
+    ax4 = fig.add_subplot(gs[1, 1])
+    ax4.axis('off')
+    
+    # Calculate statistics
+    noise_mean = np.mean(noise)
+    noise_std = np.std(noise)
+    noise_min = np.min(noise)
+    noise_max = np.max(noise)
+    
+    # SNR calculation
+    signal_power = np.mean(clean_gray.astype(np.float32) ** 2)
+    noise_power = np.mean(noise ** 2)
+    snr_db = 10 * np.log10(signal_power / noise_power) if noise_power > 0 else float('inf')
+    
+    # Display statistics
+    stats_text = f"""Noise Statistics (Grayscale)
+    
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Estimated Noise Level (σ):  {noise_level:.4f}
+
+Noise Statistics:
+  • Mean:      {noise_mean:.4f}
+  • Std Dev:   {noise_std:.4f}
+  • Min:       {noise_min:.2f}
+  • Max:       {noise_max:.2f}
+
+Image Statistics:
+  • Clean Mean:   {np.mean(clean_gray):.2f}
+  • Noisy Mean:   {np.mean(noisy_gray):.2f}
+  • SNR:          {snr_db:.2f} dB
+
+Image Size: {clean_gray.shape[1]} × {clean_gray.shape[0]}
+"""
+    
+    ax4.text(0.1, 0.5, stats_text, 
+             fontsize=11, 
+             family='monospace',
+             verticalalignment='center',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.3))
+    
+    fig.suptitle('Image Histogram and Noise Analysis', 
+                 fontsize=14, fontweight='bold', y=0.98)
+    
+    if save_path:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f"  ✓ Saved: {save_path}")
+    
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+    
+    return fig
 
 
 def generate_html_report(results_df: pd.DataFrame, output_path: str,

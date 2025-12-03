@@ -24,7 +24,7 @@ def parse_args():
         "-i", "--input",
         type=str,
         required=True,
-        help="Input folder containing clean images"
+        help="Input folder or single image file"
     )
     
     parser.add_argument(
@@ -147,39 +147,55 @@ def main():
     
     # Validate input folder exists
     if not input_folder.exists():
-        print(f"❌ Error: Input folder '{input_folder}' does not exist")
+        print(f"❌ Error: Input path '{input_folder}' does not exist")
         return 1
     
     # Create output directory
     output_folder.mkdir(parents=True, exist_ok=True)
     
-    # Process each image in input folder
+    # Check if input is a single file or directory
+    if input_folder.is_file():
+        # Process single image
+        if input_folder.suffix.lower() not in [".png", ".jpg", ".jpeg", ".bmp"]:
+            print(f"❌ Error: Unsupported image format: {input_folder.suffix}")
+            return 1
+        
+        image_files = [input_folder]
+    else:
+        # Process all images in directory
+        image_files = [f for f in input_folder.glob("*") 
+                      if f.suffix.lower() in [".png", ".jpg", ".jpeg", ".bmp"]]
+    
+    if not image_files:
+        print(f"❌ Error: No valid images found")
+        return 1
+    
+    # Process each image
     processed_count = 0
-    for image_file in input_folder.glob("*"):
-        if image_file.suffix.lower() in [".png", ".jpg", ".jpeg", ".bmp"]:
-            image = cv2.imread(str(image_file))
-            
-            if image is None:
-                print(f"⚠️  Warning: Could not read {image_file.name}, skipping")
-                continue
+    for image_file in image_files:
+        image = cv2.imread(str(image_file))
+        
+        if image is None:
+            print(f"⚠️  Warning: Could not read {image_file.name}, skipping")
+            continue
 
-            # Apply noise based on type
-            if noise_type == "gaussian":
-                noisy_image = add_gaussian_noise(image, sigma)
-                noise_desc = f"Gaussian (sigma={sigma})"
-            else:  # salt_pepper
-                noisy_image, _, _ = add_salt_pepper_noise(image, density)
-                noise_desc = f"Salt & Pepper (density={density})"
+        # Apply noise based on type
+        if noise_type == "gaussian":
+            noisy_image = add_gaussian_noise(image, sigma)
+            noise_desc = f"Gaussian (sigma={sigma})"
+        else:  # salt_pepper
+            noisy_image, _, _ = add_salt_pepper_noise(image, density)
+            noise_desc = f"Salt & Pepper (density={density})"
 
-            # Save noisy image
-            output_image_path = output_folder / f"noisy_{image_file.name}"
-            cv2.imwrite(str(output_image_path), noisy_image)
+        # Save noisy image
+        output_image_path = output_folder / f"noisy_{image_file.name}"
+        cv2.imwrite(str(output_image_path), noisy_image)
 
-            print(f"✅ Processed {image_file.name}: Added {noise_desc}")
-            processed_count += 1
+        print(f"✅ Processed {image_file.name}: Added {noise_desc}")
+        processed_count += 1
 
     if processed_count == 0:
-        print(f"\n⚠️  No images found in {input_folder}")
+        print(f"\n⚠️  Failed to process any images")
         return 1
     
     print(f"\n✅ Successfully processed {processed_count} image(s)")

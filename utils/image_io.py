@@ -10,15 +10,24 @@ from typing import List, Tuple, Optional
 
 def load_images(image_path: Path) -> List[np.ndarray]:
     """
-    Load all image files from a directory (supports png, jpg, jpeg).
+    Load all image files from a directory or a single image file.
     
     Args:
-        image_path: Directory containing images
+        image_path: Directory containing images or single image file
         
     Returns:
         List of loaded images (BGR format)
     """
     loaded_images = []
+    
+    # Check if it's a single file
+    if image_path.is_file():
+        img = cv.imread(str(image_path))
+        if img is not None:
+            loaded_images.append(img)
+        return loaded_images
+    
+    # Otherwise treat as directory
     if image_path.exists():
         # Support multiple image formats
         image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.JPG', '*.JPEG', '*.PNG']
@@ -41,14 +50,19 @@ def load_image_pair(noisy_path: Path, clean_path: Path) -> Tuple[List[np.ndarray
     Load pairs of noisy and clean images.
     
     Args:
-        noisy_path: Directory containing noisy images
-        clean_path: Directory containing clean images
+        noisy_path: Directory or file containing noisy image(s)
+        clean_path: Directory or file containing clean image(s)
         
     Returns:
         Tuple of (noisy_images, clean_images)
     """
     noisy_images = load_images(noisy_path)
     clean_images = load_images(clean_path)
+    
+    # Ensure we have matching pairs
+    if len(noisy_images) != len(clean_images):
+        print(f"⚠️  Warning: Mismatch in image counts - noisy: {len(noisy_images)}, clean: {len(clean_images)}")
+    
     return noisy_images, clean_images
 
 

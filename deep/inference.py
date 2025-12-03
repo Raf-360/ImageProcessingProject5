@@ -79,7 +79,8 @@ class DnCNNDenoiser:
                 new_state_dict[name] = v
             state_dict = new_state_dict
         
-        model.load_state_dict(state_dict)
+        # Load with strict=False to ignore bias terms from old models
+        model.load_state_dict(state_dict, strict=False)
         model = model.to(self.device)
         
         return model
